@@ -1,0 +1,199 @@
+{
+  "basic_info": {
+    "index": 1,
+    "name": "KB 스타플러스통장",
+    "link_onclick": "dtlDeposit('DP01001577','1','0', '입출금자유', 'N');return false;",
+    "link_href": "#none",
+    "main_category": "예금",
+    "sub_category": "입출금자유",
+    "text_content": "KB 스타플러스통장\n한국씨티은행 고객및 임직원을 위한 특별한 혜택\n가입가능경로\n스타뱅킹\n장바구니 비교하기"
+  },
+  "main_category": "예금",
+  "sub_category": "입출금자유",
+  "page_url": "https://obank.kbstar.com/quics?page=C016613&cc=b061496:b061645&isNew=N&prcode=DP01001577",
+  "page_title": "예금 상품/가입 ( 개인뱅킹 | 금융상품 | 예금 | 예금 상품/가입 )",
+  "pdf_links": [
+    {
+      "type": "hidden_input",
+      "text": "입출금이자유로운예금",
+      "href": "#none",
+      "hiddenInputs": {
+        "서식일련번호": "42952",
+        "서식명": "입출금이자유로운예금",
+        "서식물리파일명": "/nfsimgs3/img/doc/money/form/2024/03/28/입출금이자유로운예금약관.pdf"
+      },
+      "index": 0,
+      "element_id": "pdf_link_0"
+    },
+    {
+      "type": "hidden_input",
+      "text": "KB스타플러스통장 특약",
+      "href": "#none",
+      "hiddenInputs": {
+        "서식일련번호": "62389",
+        "서식명": "KB스타플러스통장 특약",
+        "서식물리파일명": "/nfsimgs3/img/doc/money/form/2024/07/18/KB스타플러스통장특약(240722).pdf"
+      },
+      "index": 1,
+      "element_id": "pdf_link_1"
+    },
+    {
+      "type": "hidden_input",
+      "text": "예금거래기본약관",
+      "href": "#none",
+      "hiddenInputs": {
+        "서식일련번호": "65125",
+        "서식명": "예금거래기본약관",
+        "서식물리파일명": "/nfsimgs3/img/doc/money/form/2024/12/20/예금거래기본약관20250207.pdf"
+      },
+      "index": 2,
+      "element_id": "pdf_link_2"
+    },
+    {
+      "type": "hidden_input",
+      "text": "KB스타플러스통장 상품설명서",
+      "href": "#none",
+      "hiddenInputs": {
+        "서식일련번호": "69014",
+        "서식명": "KB스타플러스통장 상품설명서",
+        "서식물리파일명": "/nfsimgs3/img/doc/money/form/2025/08/29/KB스타플러스통장_250901.pdf"
+      },
+      "index": 3,
+      "element_id": "pdf_link_3"
+    },
+    {
+      "type": "keyword",
+      "text": "이용약관 안내",
+      "href": "/quics?page=C020797",
+      "onclick": "",
+      "title": "",
+      "keyword": "약관",
+      "index": 4,
+      "element_id": "keyword_link_4"
+    },
+    {
+      "type": "keyword",
+      "text": "위치기반서비스 이용약관",
+      "href": "/quics?page=C110586",
+      "onclick": "",
+      "title": "",
+      "keyword": "약관",
+      "index": 5,
+      "element_id": "keyword_link_5"
+    }
+  ],
+  "tables": [
+    {
+      "index": 0,
+      "headers": [
+        "구분",
+        "만기금액",
+        "이자"
+      ],
+      "rows": [
+        [
+          "비과세",
+          "10,200,000원",
+          "200,000원"
+        ],
+        [
+          "일반과세 (세후)",
+          "10,169,200원",
+          "169,200원"
+        ]
+      ]
+    },
+    {
+      "index": 1,
+      "headers": [
+        "채널",
+        "외국통화 거래구분",
+        "USD/JPY/EUR",
+        "기타통화",
+        "한도",
+        "영업점(환전센터 및 ATM제외)",
+        "영업점(환전센터 및 ATM제외)",
+        "비대면"
+      ],
+      "rows": [
+        [
+          "외국통화매입",
+          "90%",
+          "50%",
+          "제한없음"
+        ],
+        [
+          "외국통화매도",
+          "70%",
+          "40%",
+          "제한없음"
+        ],
+        [
+          "외국통화매입",
+          "90%",
+          "50%",
+          "미화1만불상당액미만"
+        ]
+      ]
+    },
+    {
+      "index": 2,
+      "headers": [
+        "구분",
+        "USD/JPY/EUR",
+        "기타통화",
+        "KB스타플러스통장출금→외화입출금통장입금",
+        "외화입출금통장출금→KB스타플러스통장입금"
+      ],
+      "rows": [
+        [
+          "90%",
+          "50%"
+        ],
+        [
+          "70%",
+          "40%"
+        ]
+      ]
+    },
+    {
+      "index": 3,
+      "headers": [
+        "대표전화",
+        "상담전용",
+        "기업전용",
+        "기업(B2B)",
+        "외국인전용",
+        "어르신전용"
+      ],
+      "rows": [
+        [
+          "1588-9999, 1599-9999, 1644-9999\n\t\t\t\t\t\t\t\t\t\t\t\t해외에서 국내로 걸 때+82-2-6300-9999"
+        ],
+        [
+          "대출 단기연체 및 만기안내1588-9008\n\t\t\t\t\t\t\t\t\t\t\t\t해외에서 국내로 걸 때+82-2-3702-1240"
+        ],
+        [
+          "1800-9999\n\t\t\t\t\t\t\t\t\t\t\t\t(분실 및 사고신고 제외)"
+        ],
+        [
+          "투자상품 승낙확인1833-3938\n\t\t\t\t\t\t\t\t\t\t\t\t해외에서 국내로 걸 때+82-1833-3938"
+        ],
+        [
+          "1599-9499"
+        ],
+        [
+          "1566-9944"
+        ],
+        [
+          "1599-4477"
+        ],
+        [
+          "1644-3308"
+        ]
+      ]
+    }
+  ],
+  "interest_rates": [],
+  "extracted_at": "2025-10-12T06:43:03.028924"
+}

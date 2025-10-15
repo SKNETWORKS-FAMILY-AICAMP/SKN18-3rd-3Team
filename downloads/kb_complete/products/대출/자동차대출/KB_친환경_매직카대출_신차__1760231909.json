@@ -1,0 +1,194 @@
+{
+  "basic_info": {
+    "index": 7,
+    "name": "KB 친환경 매직카대출(신차)",
+    "link_onclick": "dtlLoan('LN20001389','','0','자동차대출 ','N', '');",
+    "link_href": "#none",
+    "main_category": "대출",
+    "sub_category": "자동차대출",
+    "text_content": "KB 친환경 매직카대출(신차)\n친환경차량 신차 구매에 필요한 자금은!!\n가입가능채널\n영업점\n최고 6천만원\n장바구니 비교하기"
+  },
+  "main_category": "대출",
+  "sub_category": "자동차대출",
+  "page_url": "https://obank.kbstar.com/quics?page=C103573&cc=b104363:b104516&isNew=N&prcode=LN20001389&QSL=F",
+  "page_title": "자동차대출 ( 개인뱅킹 | 금융상품 | 대출 | 대출상품/신청 | 자동차대출 )",
+  "pdf_links": [
+    {
+      "type": "hidden_input",
+      "text": "국민카드 연계오토론",
+      "href": "#none",
+      "hiddenInputs": {
+        "서식일련번호": "39624",
+        "서식명": "국민카드 연계오토론",
+        "서식물리파일명": "/nfsimgs3/img/doc/money/form/2021/03/25/카드오토서비스설명서매직카.pdf"
+      },
+      "index": 0,
+      "element_id": "pdf_link_0"
+    },
+    {
+      "type": "hidden_input",
+      "text": "가계대출상품설명서",
+      "href": "#none",
+      "hiddenInputs": {
+        "서식일련번호": "64565",
+        "서식명": "가계대출상품설명서",
+        "서식물리파일명": "/nfsimgs3/img/doc/money/form/2024/10/16/가계대출상품설명서.pdf"
+      },
+      "index": 1,
+      "element_id": "pdf_link_1"
+    },
+    {
+      "type": "hidden_input",
+      "text": "은행여신거래",
+      "href": "#none",
+      "hiddenInputs": {
+        "서식일련번호": "64579",
+        "서식명": "은행여신거래",
+        "서식물리파일명": "/nfsimgs3/img/doc/money/form/2024/12/02/은행여신거래기본약관가계용2410.pdf"
+      },
+      "index": 2,
+      "element_id": "pdf_link_2"
+    },
+    {
+      "type": "hidden_input",
+      "text": "대출거래약정서(가계용)",
+      "href": "#none",
+      "hiddenInputs": {
+        "서식일련번호": "64580",
+        "서식명": "대출거래약정서(가계용)",
+        "서식물리파일명": "/nfsimgs3/img/doc/money/form/2024/10/16/대출거래약정서(가계용).pdf"
+      },
+      "index": 3,
+      "element_id": "pdf_link_3"
+    },
+    {
+      "type": "keyword",
+      "text": "이용약관 안내",
+      "href": "/quics?page=C020797",
+      "onclick": "",
+      "title": "",
+      "keyword": "약관",
+      "index": 4,
+      "element_id": "keyword_link_4"
+    },
+    {
+      "type": "keyword",
+      "text": "위치기반서비스 이용약관",
+      "href": "/quics?page=C110586",
+      "onclick": "",
+      "title": "",
+      "keyword": "약관",
+      "index": 5,
+      "element_id": "keyword_link_5"
+    }
+  ],
+  "tables": [
+    {
+      "index": 0,
+      "headers": [
+        "월평균 상환원금",
+        "월평균 이자금액",
+        "월평균 내는 금액"
+      ],
+      "rows": [
+        [
+          "0원",
+          "0원",
+          "0원"
+        ]
+      ]
+    },
+    {
+      "index": 1,
+      "headers": [
+        "상환원금",
+        "이자금액",
+        "월 납부금액"
+      ],
+      "rows": [
+        [
+          "0원",
+          "0원",
+          "0원"
+        ]
+      ]
+    },
+    {
+      "index": 2,
+      "headers": [
+        "금액구간",
+        "신용카드",
+        "체크카드"
+      ],
+      "rows": [
+        [
+          "1000만원 이상~ 2000만원 미만",
+          "1.0%",
+          "0.5%"
+        ],
+        [
+          "2000만원 이상",
+          "1.5%"
+        ]
+      ]
+    },
+    {
+      "index": 3,
+      "headers": [
+        "대출금액",
+        "5천만원 이하",
+        "5천만원 초과~1억원 이하",
+        "1억원 초과~10억원 이하",
+        "10억원 초과"
+      ],
+      "rows": [
+        [
+          "인지세액",
+          "비과세",
+          "7만원(각각 3만5천원)",
+          "15만원(각각 7만5천원)",
+          "35만원(각각 17만5천원)"
+        ]
+      ]
+    },
+    {
+      "index": 4,
+      "headers": [
+        "대표전화",
+        "상담전용",
+        "기업전용",
+        "기업(B2B)",
+        "외국인전용",
+        "어르신전용"
+      ],
+      "rows": [
+        [
+          "1588-9999, 1599-9999, 1644-9999\n\t\t\t\t\t\t\t\t\t\t\t\t해외에서 국내로 걸 때+82-2-6300-9999"
+        ],
+        [
+          "대출 단기연체 및 만기안내1588-9008\n\t\t\t\t\t\t\t\t\t\t\t\t해외에서 국내로 걸 때+82-2-3702-1240"
+        ],
+        [
+          "1800-9999\n\t\t\t\t\t\t\t\t\t\t\t\t(분실 및 사고신고 제외)"
+        ],
+        [
+          "투자상품 승낙확인1833-3938\n\t\t\t\t\t\t\t\t\t\t\t\t해외에서 국내로 걸 때+82-1833-3938"
+        ],
+        [
+          "1599-9499"
+        ],
+        [
+          "1566-9944"
+        ],
+        [
+          "1599-4477"
+        ],
+        [
+          "1644-3308"
+        ]
+      ]
+    }
+  ],
+  "interest_rates": [],
+  "extracted_at": "2025-10-12T10:18:05.057566"
+}
