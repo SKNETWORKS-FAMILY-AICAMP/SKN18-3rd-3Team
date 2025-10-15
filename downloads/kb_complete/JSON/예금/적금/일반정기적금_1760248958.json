@@ -1,0 +1,18 @@
+{
+  "product_name": "일반정기적금",
+  "main_category": "예금",
+  "sub_category": "적금",
+  "page_url": "https://obank.kbstar.com/quics?page=C016613&cc=b061496:b061645&isNew=N&prcode=DP01000021",
+  "product_details": {
+    "notice_tab": {
+      "product_change_info": [
+        {
+          "title": "상품내용 변경에 관한 사항(2018.10.30 변경)",
+          "content": "<중도해지이율 변경> - 변경 전 : 기본이율 x 50% x 경과월수/계약기간, 예치기간 3개구간 - 변경 후 : 기본이율 x 50 ~ 90% x 경과월수/계약기간, 예치기간 7개구간 - 적용대상 : 시행일 이후 신규(재예치)분부터 적용",
+          "html": ""
+        }
+      ]
+    }
+  },
+  "extracted_at": "2025-10-12T15:02:38.403157"
+}

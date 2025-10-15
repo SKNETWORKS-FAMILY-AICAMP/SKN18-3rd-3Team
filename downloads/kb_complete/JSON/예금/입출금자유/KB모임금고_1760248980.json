@@ -1,0 +1,18 @@
+{
+  "product_name": "KB모임금고",
+  "main_category": "예금",
+  "sub_category": "입출금자유",
+  "page_url": "https://obank.kbstar.com/quics?page=C016613&cc=b061496:b061645&isNew=N&prcode=DP01001593",
+  "product_details": {
+    "notice_tab": {
+      "product_change_info": [
+        {
+          "title": "상품내용 변경에 관한 사항(2024.12.27 변경)",
+          "content": "<이자지급시기>- 변경 전 : 이자는 결산일(매월 둘째 금요일)에 결산하여 다음날(원가일) 원금에 더함- 변경 후 : 이자는 결산일(매월 둘째 금요일)에 결산하여 다음날(원가일) 원금에 더함 ※  단, 고객이 이자받기를 요청한 경우 요청일에 원금에 더함",
+          "html": ""
+        }
+      ]
+    }
+  },
+  "extracted_at": "2025-10-12T15:03:00.872095"
+}
