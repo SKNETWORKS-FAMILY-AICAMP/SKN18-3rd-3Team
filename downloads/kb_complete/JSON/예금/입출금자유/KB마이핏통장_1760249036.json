@@ -1,0 +1,23 @@
+{
+  "product_name": "KB마이핏통장",
+  "main_category": "예금",
+  "sub_category": "입출금자유",
+  "page_url": "https://obank.kbstar.com/quics?page=C016613&cc=b061496:b061645&isNew=N&prcode=DP01001243",
+  "product_details": {
+    "notice_tab": {
+      "product_change_info": [
+        {
+          "title": "상품내용 변경에 관한 사항(2021.09.24 변경)",
+          "content": "1. 변경내용<상품 신규 채널>- 변경 전 : 영업점, KB스타뱅킹, 리브앱- 변경 후 : 영업점, KB스타뱅킹<상품 전환 채널>- 변경 전 : 영업점, KB스타뱅킹, 리브앱- 변경 후 : 영업점, KB스타뱅킹",
+          "html": ""
+        },
+        {
+          "title": "상품내용 변경에 관한 사항(2021.06.30 변경)",
+          "content": "1. 변경내용<머니쪼개기 채널>- 변경전 : KB스타뱅킹, 리브앱- 변경후 : KB스타뱅킹",
+          "html": ""
+        }
+      ]
+    }
+  },
+  "extracted_at": "2025-10-12T15:03:56.119251"
+}
