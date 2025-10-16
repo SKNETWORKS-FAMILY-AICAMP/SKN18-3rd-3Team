@@ -29,6 +29,64 @@ def normalize_lines(text: str) -> List[str]:
     return [ln for ln in lines if ln]
 
 # ===== 제목(상품이름) 추출 =====
+def _merge_words_in_line(words: List[dict], min_gap: float = 3.0, gap_factor: float = 0.4) -> str:
+    """단어 간 간격을 보고 자연스러운 공백만 유지하면서 문자열 합치기"""
+    parts: List[str] = []
+    prev_x1: Optional[float] = None
+    prev_size: Optional[float] = None
+    for word in words:
+        text = word.get("text")
+        if not text:
+            continue
+        x0 = word.get("x0")
+        x1 = word.get("x1", x0)
+        if x0 is not None and prev_x1 is not None:
+            size = word.get("size") or prev_size or 0
+            gap = x0 - prev_x1
+            tol = max(min_gap, size * gap_factor)
+            if gap > tol:
+                parts.append(" ")
+        parts.append(text)
+        prev_x1 = x1 if x1 is not None else x0
+        prev_size = word.get("size", prev_size)
+    return "".join(parts).strip()
+
+def _extract_title_from_text(text: str, max_lines: int = 3) -> str:
+    """extract_text 결과에서 상단 연속 줄을 묶어 제목 후보 생성"""
+    if not text:
+        return ""
+    lines = [ln.strip() for ln in text.splitlines()]
+    lines = [ln for ln in lines if ln]
+    if not lines:
+        return ""
+    candidate: List[str] = []
+    for ln in lines:
+        if ARTICLE_NUMBER_RE.search(ln):
+            break
+        candidate.append(ln)
+        if len(candidate) >= max_lines or len(" ".join(candidate)) >= 80:
+            break
+    return " ".join(candidate).strip()
+
+def _needs_text_fallback(word_title: str, text_title: str) -> bool:
+    """단어 기반 추출 결과가 흐트러졌다면 텍스트 기반 제목으로 대체"""
+    if not text_title:
+        return False
+    if not word_title:
+        return True
+    norm_word = re.sub(r"\s+", "", word_title)
+    if not norm_word:
+        return True
+    dup = sum(1 for i in range(1, len(norm_word)) if norm_word[i] == norm_word[i - 1])
+    if len(norm_word) > 1 and (dup / (len(norm_word) - 1)) >= 0.05:
+        return True
+    tokens = word_title.split()
+    if tokens:
+        single_chars = sum(1 for t in tokens if len(t) == 1)
+        if single_chars >= max(2, len(tokens) // 2):
+            return True
+    return False
+
 def extract_title_from_first_page(pdf_path: Path, size_tol: float = 1.5) -> str:
     """
     1페이지에서 폰트 크기/좌표를 이용해 다줄 제목을 합쳐 추출.
@@ -39,13 +97,15 @@ def extract_title_from_first_page(pdf_path: Path, size_tol: float = 1.5) -> str:
             return ""
         page = pdf.pages[0]
 
+        text_based_title = _extract_title_from_text(page.extract_text() or "")
+
         words = page.extract_words(
             use_text_flow=True,
             keep_blank_chars=False,
             extra_attrs=["size", "x0", "x1", "top", "bottom"],
         )
         if not words:
-            return ""
+            return text_based_title[:200]
 
         sizes = [w.get("size", 0) for w in words if w.get("size")]
         max_size = max(sizes) if sizes else 0
@@ -78,13 +138,17 @@ def extract_title_from_first_page(pdf_path: Path, size_tol: float = 1.5) -> str:
         if cur_line:
             lines.append(cur_line)
 
-        line_texts = []
+        line_texts: List[str] = []
         for line in lines:
             line.sort(key=lambda w: w["x0"])
-            line_texts.append(" ".join(w["text"] for w in line).strip())
+            line_texts.append(_merge_words_in_line(line))
 
         title = " ".join(lt for lt in line_texts if lt).strip()
-        return title[:200]
+
+        if _needs_text_fallback(title, text_based_title):
+            return text_based_title[:200]
+
+        return (title or text_based_title)[:200]
 
 def extract_product_name(full_text: str, pdf_path: Path) -> str:
     title = extract_title_from_first_page(pdf_path)
@@ -103,6 +167,30 @@ def _mask_article_markers_in_text(txt: str) -> str:
     정규식 경계를 깨서 ARTICLE_NUMBER_RE가 매칭되지 않게 함.
     """
     return re.sub(r"(제\s*\d+\s*조)", r"\1(표내)", txt)
+
+def _should_join_without_space(prev_line: str, next_line: str) -> bool:
+    """
+    줄을 공백 없이 이어 붙일지 판단.
+    - 이전 줄 마지막 글자와 다음 줄 첫 글자가 모두 한글이면서
+      둘 중 하나라도 한 글자라면 공백 없이 붙임 (줄바꿈으로 단어가 쪼개진 상황 방지)
+    """
+    if not prev_line or not next_line:
+        return False
+    prev_trimmed = prev_line.rstrip()
+    next_trimmed = next_line.lstrip()
+    if not prev_trimmed or not next_trimmed:
+        return False
+
+    prev_last = prev_trimmed[-1]
+    next_first = next_trimmed[0]
+    hangul_re = r"[\uAC00-\uD7A3]"
+
+    if re.match(hangul_re, prev_last) and re.match(hangul_re, next_first):
+        prev_token = prev_trimmed.split()[-1]
+        next_token = next_trimmed.split()[0]
+        if len(prev_token) <= 1 or len(next_token) <= 1:
+            return True
+    return False
 
 def _normalize_article_content(text: str) -> str:
     """
@@ -139,7 +227,10 @@ def _normalize_article_content(text: str) -> str:
             result.append(buffer.strip())
             buffer = stripped
         else:
-            buffer = f"{buffer.rstrip()} {stripped}"
+            if _should_join_without_space(buffer, stripped):
+                buffer = f"{buffer.rstrip()}{stripped}"
+            else:
+                buffer = f"{buffer.rstrip()} {stripped}"
 
     if buffer:
         result.append(buffer.strip())
