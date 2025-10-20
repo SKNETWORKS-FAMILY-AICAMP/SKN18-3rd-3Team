@@ -1,5 +1,5 @@
 nomic-embed-text
 jeffh/intfloat-multilingual-e5-large-instruct:Q8_0
 mxbai-embed-large
-qwen3-embedding:0.6b
+qwen3-embedding:0.6b => 조항번호 입력:제2조, 출력:제24조 등 문제 있음
 dengcao/Qwen3-Embedding-4B:Q4_K_M
