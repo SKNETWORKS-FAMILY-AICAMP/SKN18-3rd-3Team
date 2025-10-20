@@ -21,7 +21,7 @@ def generate_response_ollama(prompt: str, context: str):
     payload = {
         "model": "gemma3:4b",  # 원하는 모델명 사용
         "prompt": f"""다음 정보를 참고하여 질문에 답해주세요:\n\n{context}\n\n,
-        질문이 들어오면 chunk_id,doc_id,은행명,상품종류,상품이름,조항,조항이름,text(예: 44f27cc9eb5927ee91e6:제1조:0,44f27cc9eb5927ee91e6,우리은행,예금,예 금 거 래 기 본 약 관,제1조,(적용범위),"은행명: 우리은행)
+        질문이 들어오면 은행명,상품종류,상품이름,조항,조항이름,text
         부분을 위주로 질문 키워드를 추출하고, 질문에 맞게 답해주세요.
         ,질문: {prompt}""",
         "stream": False
