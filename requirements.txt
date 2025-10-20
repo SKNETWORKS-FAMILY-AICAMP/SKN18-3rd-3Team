@@ -1,0 +1,15 @@
+playwright 
+aiohttp
+chromium
+PyYaml
+pdfplumber
+pandas
+pathlib
+typing
+pymupdf4llm
+kss
+python-dotenv
+openai>=1.0.0
+python-mecab-ko  # Windows에서 C++ 컴파일러 필요, 선택사항 (pecab으로 대체 가능)
+psycopg2
+psycopg2-binary
