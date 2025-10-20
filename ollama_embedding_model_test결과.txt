@@ -1,4 +1,6 @@
 nomic-embed-text => 조항번호는 잘 찾으나, 상품이름 매치가 안되는 편임
 jeffh/intfloat-multilingual-e5-large-instruct:Q8_0 => 문자수 제한 500자 이하, 상품이름, 조항번호 모두 맞지 않음
 qwen3-embedding:0.6b => 조항번호 입력:제2조, 출력:제24조 등 문제 있음
-dengcao/Qwen3-Embedding-4B:Q4_K_M
+dengcao/Qwen3-Embedding-4B:Q4_K_M => 상기 임베딩 모델 보다는 정확하나, 여전히 조항번호 오류발생
+qwen3-embedding:4b => 0.6b처럼 조항번호 등에서 오류가 발생함
+bona/bge-m3-korean => 위의 모델보다 성능이 높으나, 배포하기에 부적합함

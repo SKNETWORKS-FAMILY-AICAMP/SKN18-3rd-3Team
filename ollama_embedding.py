@@ -8,7 +8,7 @@ from tqdm import tqdm
 # ==========================
 # 모델 변경하고 사용하려면 DB docker container를 삭제하고 docker container를 다시 build해야함
 # 현재 directory의 database, init.sql폴더를 삭제 후 명령어 "docker-compose up -d"실행
-OLLAMA_EMBED_MODEL = "dengcao/Qwen3-Embedding-4B:Q4_K_M"  # <- 여기만 바꾸면 다른 모델 사용 가능
+OLLAMA_EMBED_MODEL = "bona/bge-m3-korean"  # <- 여기만 바꾸면 다른 모델 사용 가능
 OLLAMA_API_URL = "http://localhost:11434/api/embeddings"
 
 DB_CONFIG = {
@@ -55,6 +55,7 @@ conn.commit()
 # ==========================
 # 5. CSV 로드
 # ==========================
+# df = pd.read_csv("./data/merged_bankdata.csv")
 df = pd.read_csv("우리예금약관_정제_임베딩용.csv")
 
 if 'text' not in df.columns:
