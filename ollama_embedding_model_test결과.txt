@@ -1,0 +1,5 @@
+nomic-embed-text
+jeffh/intfloat-multilingual-e5-large-instruct:Q8_0
+mxbai-embed-large
+qwen3-embedding:0.6b
+dengcao/Qwen3-Embedding-4B:Q4_K_M
