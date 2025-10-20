@@ -1,9 +1,0 @@
-<pgvector 구현 가이드>
-주어진 csv를 pgvector VectorDB를 이용하여 LLM 적용을 위한 데이터 임베딩 작업 필요
-
-- pgvector를 위한 DB는 주어진 "docker-compose.yml"를 기준으로 함
-- docker 생성을 제외한 DB작업(테이블 생성, csv데이터 테이블 삽입)이나 임베딩 과정은 모두 python코드로 구현해야함
-- DB 작업을 위한 query문은 python 라이브러리 "psycopg2"이용하여 처리
-- OpenAI_API_KEY는 dotenv 라이브러리 이용
-- 임베딩 모델: OpenAI의 "text-embedding-3-small"이용
-- 임베딩 작업 후 LLM 적용하여 테스트
