@@ -6,7 +6,7 @@ from sentence_transformers import SentenceTransformer
 # ==========================
 # 1. 설정: 모델 이름과 DB 정보
 # ==========================
-HF_EMBED_MODEL = "jhgan/ko-sbert-nli"  # <-- Hugging Face 모델 이름
+HF_EMBED_MODEL = "upskyy/bge-m3-korean"  # <-- Hugging Face 모델 이름
 DB_CONFIG = {
     "host": "localhost",
     "dbname": "vectordb",
@@ -18,8 +18,6 @@ DB_CONFIG = {
 # ==========================
 # 2. 모델 로드 및 임베딩 함수 정의
 # ==========================
-import os
-os.environ['TRANSFORMERS_CACHE'] = './huggingface_embedding'
 
 print("🔄 Hugging Face 임베딩 모델 로드 중...")
 hf_model = SentenceTransformer(HF_EMBED_MODEL)
