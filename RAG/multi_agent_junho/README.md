@@ -20,3 +20,16 @@
 - query문 결과에 따른 맞춤형 프롬프트 생성(키워드 조합별 prompt 작성): 사용자는 상품에 대한 설명뿐만 아니라, 상품에 대한 내용(이자, 기간, 가입대상 등)에 대해서 질의하는 경우가 있음. 이 경우 해당 키워드를 추출하면, 상품이름이 여러개 나오거나, 상품이름이 안 나옴 => text와 context에서 LIKE query문으로 키워드를 추출하거나, application에서 은행명, 상품이름을 선택할 수 있는 select bar를 제공하여, 답변 정확도 향상과 사용자 편의를 도모하는 것도 고려할 수 있음
 
 - 각 프롬프트에 기반한 llm응답 생성: apllication에서 사용자 질의와 select bar 항목을 고려하여 프롬프트를 구성하고, 이에 기반한 llm응답 생성
+
+## 전체 아키텍쳐 개요
+[User Query]
+   ↓
+[CoordinatorAgent]
+   ├─ KeywordAnalyzer → 키워드 유형 탐지 (은행명 / 상품명 / 조항 등)
+   ├─ DBMatcher → DB 내 유사 항목 탐색 (fuzzy match, cosine similarity 등)
+   ├─ If match:
+   │     → DBAgent(SQL로 직접 조회)
+   └─ Else:
+         → TextSearcherAgent(전체 text 컬럼에서 의미 유사도 검색)
+   ↓
+[AnswerAgent] → 사용자 친화적으로 설명
