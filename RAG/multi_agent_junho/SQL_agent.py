@@ -220,12 +220,28 @@ class CoordinatorAgent:
 
 
 # -----------------------
-# 4️⃣ 실행 예시
+# 4️⃣ 실행
 # -----------------------
 if __name__ == "__main__":
-    banks = ["우리은행", "신한은행", "하나은행", "국민은행"]
-    products = ["청년희망적금", "예금거래기본약관", "우리 FLEX 정기예금", "KB 스타 건강적금"]
+    with engine.connect() as conn:
+        # 은행명 목록
+        bank_query = text(f"SELECT DISTINCT 은행명 FROM {TABLE} WHERE 은행명 IS NOT NULL;")
+        bank_rows = conn.execute(bank_query).fetchall()
+        banks = [r[0] for r in bank_rows if r[0]]
 
+        # 상품이름 또는 상품명 컬럼 확인 후 조회
+        inspector = inspect(engine)
+        cols = [col['name'] for col in inspector.get_columns(TABLE)]
+
+        product_col = "상품이름" if "상품이름" in cols else "상품명"
+        prod_query = text(f"SELECT DISTINCT {product_col} FROM {TABLE} WHERE {product_col} IS NOT NULL;")
+        prod_rows = conn.execute(prod_query).fetchall()
+        products = [r[0] for r in prod_rows if r[0]]
+
+    print(f"✅ 불러온 은행 목록 ({len(banks)}개):", banks)
+    print(f"✅ 불러온 상품 목록 ({len(products)}개):", products)
+
+    # Agent 초기화
     agent = CoordinatorAgent(engine, banks, products)
 
     queries = [
@@ -233,7 +249,7 @@ if __name__ == "__main__":
         "국민은행 KB스타 건강 적금에 대해 알려줘.",
         "우리은행 상품별 금리를 알려줘.",
         "우리은행 예금거래 기본약관 제5조에 대해 설명해줘.",
-        "우리은행 예금 거래 기본 약관에 대해 설명"
+        "우리은행 예금 거래 기본 약관에 대해 설명",
         "국민은행 KB 올인원급여통장에 대해 설명해줘."
     ]
 
@@ -247,3 +263,4 @@ if __name__ == "__main__":
             print(out["rows"].head(5))
         else:
             print(out["message"])
+
