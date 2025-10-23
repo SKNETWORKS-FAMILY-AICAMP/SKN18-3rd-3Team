@@ -18,7 +18,7 @@
 - **Embeddings**: OpenAI text-embedding-3-large (3072차원)
 - **LLM**: OpenAI gpt-5-nano
 - **Vector Store**: pgvector (IVFFLAT/HNSW)
-- **Framework**: LangChain
+- **Framework**: LangChain + LangGraph
 - **Deployment**: Docker Compose
 
 ## 프로젝트 구조
@@ -34,7 +34,7 @@
 │   ├── ingestion/         # 데이터 로딩 및 인덱싱
 │   └── rag/               # RAG 엔진 및 파이프라인
 ├── data/                  # 데이터 파일
-│   └── merged_bankdata.csv
+│   └── final_data.csv
 ├── docker/                # Docker 설정
 │   ├── Dockerfile.app
 │   └── initdb/
@@ -190,6 +190,6 @@ docker-compose logs db
 
 ### 인덱싱 실패
 
-- CSV 파일 경로 확인: `data/merged_bankdata.csv`
+- CSV 파일 경로 확인: `data/final_data.csv`
 - 데이터베이스 테이블이 생성되었는지 확인
 - 로그에서 상세한 에러 메시지 확인

@@ -28,8 +28,7 @@ def load_bank_data(csv_path: str) -> List[Document]:
         - 상품이름: Product name
         - 조항: Clause number
         - 조항이름: Clause name
-        - text: Original text
-        - context: Processed context text (used as page_content)
+        - 조항내용: Clause content (used as page_content)
     """
     logger.info(f"Loading bank data from {csv_path}")
     
@@ -40,19 +39,36 @@ def load_bank_data(csv_path: str) -> List[Document]:
         
         # Convert to Document objects
         documents = []
+        skipped = 0
+        
         for idx, row in df.iterrows():
-            # Use context as the main content
-            content = row.get("context", row.get("text", ""))
+            # Use 조항내용 as the main content (fallback to context or text)
+            content = row.get("조항내용", row.get("context", row.get("text", "")))
             
-            # Build metadata
+            # Skip if content is empty, NaN, or None
+            if pd.isna(content) or not str(content).strip():
+                skipped += 1
+                logger.debug(f"Skipping row {idx}: empty content")
+                continue
+            
+            # Convert to string and strip
+            content = str(content).strip()
+            
+            # Skip if content is too short (less than 10 characters)
+            if len(content) < 10:
+                skipped += 1
+                logger.debug(f"Skipping row {idx}: content too short ({len(content)} chars)")
+                continue
+            
+            # Build metadata (handle NaN values)
             metadata = {
-                "chunk_id": str(row.get("chunk_id", "")),
-                "doc_id": str(row.get("doc_id", "")),
-                "은행명": str(row.get("은행명", "")),
-                "상품종류": str(row.get("상품종류", "")),
-                "상품이름": str(row.get("상품이름", "")),
-                "조항": str(row.get("조항", "")),
-                "조항이름": str(row.get("조항이름", ""))
+                "chunk_id": str(row.get("chunk_id", "")) if pd.notna(row.get("chunk_id")) else "",
+                "doc_id": str(row.get("doc_id", "")) if pd.notna(row.get("doc_id")) else "",
+                "은행명": str(row.get("은행명", "")) if pd.notna(row.get("은행명")) else "",
+                "상품종류": str(row.get("상품종류", "")) if pd.notna(row.get("상품종류")) else "",
+                "상품이름": str(row.get("상품이름", "")) if pd.notna(row.get("상품이름")) else "",
+                "조항": str(row.get("조항", "")) if pd.notna(row.get("조항")) else "",
+                "조항이름": str(row.get("조항이름", "")) if pd.notna(row.get("조항이름")) else ""
             }
             
             # Create Document
@@ -62,7 +78,7 @@ def load_bank_data(csv_path: str) -> List[Document]:
             )
             documents.append(doc)
         
-        logger.info(f"Created {len(documents)} Document objects")
+        logger.info(f"Created {len(documents)} Document objects (skipped {skipped} invalid rows)")
         return documents
     
     except FileNotFoundError:
@@ -104,22 +120,40 @@ def load_bank_data_filtered(
         
         # Convert to documents
         documents = []
+        skipped = 0
+        
         for idx, row in df.iterrows():
-            content = row.get("context", row.get("text", ""))
+            # Use 조항내용 as the main content (fallback to context or text)
+            content = row.get("조항내용", row.get("context", row.get("text", "")))
             
+            # Skip if content is empty, NaN, or None
+            if pd.isna(content) or not str(content).strip():
+                skipped += 1
+                continue
+            
+            # Convert to string and strip
+            content = str(content).strip()
+            
+            # Skip if content is too short
+            if len(content) < 10:
+                skipped += 1
+                continue
+            
+            # Build metadata (handle NaN values)
             metadata = {
-                "chunk_id": str(row.get("chunk_id", "")),
-                "doc_id": str(row.get("doc_id", "")),
-                "은행명": str(row.get("은행명", "")),
-                "상품종류": str(row.get("상품종류", "")),
-                "상품이름": str(row.get("상품이름", "")),
-                "조항": str(row.get("조항", "")),
-                "조항이름": str(row.get("조항이름", ""))
+                "chunk_id": str(row.get("chunk_id", "")) if pd.notna(row.get("chunk_id")) else "",
+                "doc_id": str(row.get("doc_id", "")) if pd.notna(row.get("doc_id")) else "",
+                "은행명": str(row.get("은행명", "")) if pd.notna(row.get("은행명")) else "",
+                "상품종류": str(row.get("상품종류", "")) if pd.notna(row.get("상품종류")) else "",
+                "상품이름": str(row.get("상품이름", "")) if pd.notna(row.get("상품이름")) else "",
+                "조항": str(row.get("조항", "")) if pd.notna(row.get("조항")) else "",
+                "조항이름": str(row.get("조항이름", "")) if pd.notna(row.get("조항이름")) else ""
             }
             
             doc = Document(page_content=content, metadata=metadata)
             documents.append(doc)
         
+        logger.info(f"Created {len(documents)} valid documents (skipped {skipped} invalid rows)")
         return documents
     
     except Exception as e:

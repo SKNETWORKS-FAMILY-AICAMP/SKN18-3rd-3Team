@@ -65,7 +65,7 @@ def main():
         indexer = DocumentIndexer(vectorstore, batch_size=50)
         
         # Load documents from CSV
-        csv_path = "data/merged_bankdata.csv"
+        csv_path = "data/final_data.csv"
         logger.info(f"Loading documents from {csv_path}...")
         documents = load_bank_data(csv_path)
         logger.info(f"Loaded {len(documents)} documents")

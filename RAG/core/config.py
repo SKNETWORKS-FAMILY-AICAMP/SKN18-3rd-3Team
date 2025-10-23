@@ -43,6 +43,24 @@ class Config(BaseSettings):
         description="Logging level"
     )
     
+    # LangSmith settings (optional)
+    LANGCHAIN_TRACING_V2: Optional[str] = Field(
+        default=None,
+        description="Enable LangSmith tracing"
+    )
+    LANGCHAIN_ENDPOINT: Optional[str] = Field(
+        default=None,
+        description="LangSmith API endpoint"
+    )
+    LANGCHAIN_API_KEY: Optional[str] = Field(
+        default=None,
+        description="LangSmith API key"
+    )
+    LANGCHAIN_PROJECT: Optional[str] = Field(
+        default=None,
+        description="LangSmith project name"
+    )
+    
     @validator("PGVECTOR_INDEX")
     def validate_index_type(cls, v):
         """Validate vector index type"""
@@ -64,6 +82,7 @@ class Config(BaseSettings):
         env_file = ".env"
         env_file_encoding = "utf-8"
         case_sensitive = True
+        extra = "ignore"  # 정의되지 않은 환경 변수 무시
     
     @classmethod
     def from_env(cls) -> "Config":
