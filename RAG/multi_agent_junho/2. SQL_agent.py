@@ -274,28 +274,30 @@ if __name__ == "__main__":
 
     agent = CoordinatorAgent(engine, banks, products)
 
-    # ✅ 요청하신 테스트 질의 11개
     queries = [
-        "국민은행 KB스타 건강적금 6조항에 대해 알려줘.",
-        "국민 은행 KB스타 건강 적금에 대해 알려줘.",
-        "우리은행 상품별 금리를 알려줘.",
-        "우리 은행 예금거래 기본약관 제5조에 대해 설명해줘.",
-        "우리은행 예금 거래 기본 약관에 대해 설명",
-        "국민은행 KB 올인원급여통장에 대해 설명해줘.",
-        "fsdljksfd",
-        "KB 스타적금에 대해 설명",
-        "KB 스타 건강적금 7조항 정보",
-        "KB 스타적금III의 제2조",    # ✅ ASCII 로마자
-        "KB스타적금Ⅲ 조항 3"          # ✅ 유니코드 로마자
-    ]
+            "국민은행 KB스타 건강적금 6조항에 대해 알려줘.",
+            "국민 은행 KB스타 건강 적금에 대해 알려줘.",
+            "우리은행 상품별 금리를 알려줘.",
+            "우리 은행 예금거래 기본약관 제5조에 대해 설명해줘.",
+            "우리은행 예금 거래 기본 약관에 대해 설명",
+            "국민은행 KB 올인원급여통장에 대해 설명해줘.",
+            "fsdljksfd",
+            "KB 스타적금에 대해 설명",
+            "KB 스타 건강적금 7조항 정보",
+            "KB 스타적금III의 제2조",
+            "KB스타적금Ⅲ 조항 3",
+            "KB 스타플러스통장 적용범위",  # ✅ 상품이름 + 조항이름
+            "위비 모바일 통장 제한사항에 대해 알려줘.",  # ✅ 상품이름 + 조항이름
+            "우리은행에서 위비 모바일통장 제한사항 상세 설명."  # ✅ 은행명 + 상품이름 + 조항이름
+        ]
 
     for q in queries:
-        print("\n===============================")
-        print("💬 사용자 질의:", q)
-        out = agent.query_database(q)
+            print("\n===============================")
+            print("💬 사용자 질의:", q)
+            out = agent.query_database(q)
 
-        if out["mode"] == "match":
-            print(out["message"])
-            print(out["rows"].head(3))
-        else:
-            print(out["message"])
+            if out["mode"] == "match":
+                print(out["message"])
+                print(out["rows"].head(3))
+            else:
+                print(out["message"])
