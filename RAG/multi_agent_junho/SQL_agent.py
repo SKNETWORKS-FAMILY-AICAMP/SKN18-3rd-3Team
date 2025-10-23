@@ -28,7 +28,7 @@ class KeywordAnalyzer:
         info = {}
         q_nospace = query.replace(" ", "")
 
-        # 은행명
+        # 은행명 감지
         bank_found = None
         for bank in self.bank_list:
             if bank.replace(" ", "") in q_nospace:
@@ -37,7 +37,7 @@ class KeywordAnalyzer:
                 bank_found = bank
                 break
 
-        # 조항
+        # 조항 감지
         clause_match = re.search(r"(?:제\s*)?([0-9]+)\s*(?:조|조항)", query)
         if clause_match:
             detected.append("조항")
@@ -61,12 +61,13 @@ class KeywordAnalyzer:
             detected.append("상품이름")
             info["상품이름"] = best_prod
 
-        # 후보 text 추가
+        # 후보 텍스트 추가
         info.setdefault("text_candidate_tokens", []).append(query)
         if best_prod is None:
             info.setdefault("product_candidate_tokens", []).append(q_nobank)
 
         return detected, info
+
 
 # -----------------------
 # 2️⃣ DB 상품명 fuzzy/partial match
@@ -82,15 +83,18 @@ def match_product_from_db_fuzzy(token: str, col_name="상품이름", limit=200, 
     if not candidates:
         return None, 0
     
+    # 완전 일치
     for c in candidates:
         if c.replace(" ", "") == token.replace(" ", ""):
             return c, 100
     
+    # fuzzy 매칭
     best = process.extractOne(token, candidates, scorer=fuzz.token_sort_ratio)
     if best and best[1] >= sim_threshold:
         return best[0], int(best[1])
     
     return None, 0
+
 
 # -----------------------
 # 3️⃣ CoordinatorAgent 통합
@@ -120,7 +124,7 @@ class CoordinatorAgent:
         print("👉 감지된 필드:", fields)
         print("👉 초기 매칭정보:", info)
 
-        # 1️⃣ DB fuzzy 매칭으로 상품 후보
+        # 1️⃣ DB fuzzy 매칭
         if "상품이름" not in info and info.get("product_candidate_tokens"):
             for tok in info["product_candidate_tokens"]:
                 matched_prod, score = match_product_from_db_fuzzy(tok, col_name=self.field_map["상품이름"])
@@ -162,34 +166,11 @@ class CoordinatorAgent:
         with self.engine.connect() as conn:
             df = pd.read_sql(text(sql_query), con=conn, params=params)
 
-        # 3️⃣ 조건 불일치 시 semantic search + 상품명 + 조항 필터링
+        # 결과 반환 (항상 딕셔너리 형태)
         if df.empty:
-            print("⚠️ 조건 일치 없음 → 의미검색으로 대체합니다.")
-            sem_rows = self.semantic_search(user_query, top_k=10, max_rows=1000)
+            return {"mode": "no_match", "message": "⚠️ 조건 일치 없음", "rows": None}
 
-            # 상품명 필터링
-            prod_pat = info.get("상품이름", "")
-            # 조항 숫자 추출
-            clause_num = ""
-            if info.get("조항"):
-                m = re.search(r"\d+", info["조항"])
-                if m:
-                    clause_num = m.group()
-
-            filtered_rows = []
-            for r in sem_rows:
-                # 상품명 포함 여부
-                if prod_pat.replace(" ", "") in str(r.get("상품이름", "")).replace(" ", ""):
-                    # 조항 숫자 비교
-                    if clause_num == ''.join(j for j in str(r.get("조항", "")) if j in "0123456789"):
-                        r["상품이름_matched"] = r["상품이름"]
-                        r["조항_matched"] = f"제{clause_num}조"
-                        filtered_rows.append(r)
-            sem_rows = filtered_rows
-
-            return {"mode": "semantic", "rows": sem_rows}
-
-        return {"mode": "match", "rows": df}
+        return {"mode": "match", "message": "✅ 결과 반환 성공", "rows": df}
 
     def semantic_search(self, query, top_k=3, max_rows=1000):
         if "text" not in self.field_map:
@@ -218,6 +199,7 @@ class CoordinatorAgent:
             })
         return results
 
+
 # -----------------------
 # 4️⃣ 실행 예시
 # -----------------------
@@ -230,14 +212,17 @@ if __name__ == "__main__":
     queries = [
         "국민은행 KB스타 건강적금 6조항에 대해 알려줘.",
         "우리은행 상품별 금리를 알려줘.",
-        "우리은행 예금거래 기본약관 제5조에 대해 설명해줘."
+        "우리은행 예금거래 기본약관 제5조에 대해 설명해줘.",
+        "국민은행 KB 올인원급여통장에 대해 설명해줘."
     ]
 
     for q in queries:
+        print("\n===============================")
+        print("💬 사용자 질의:", q)
         out = agent.query_database(q)
-        print("모드:", out["mode"])
+
         if out["mode"] == "match":
+            print(out["message"])
             print(out["rows"].head(5))
         else:
-            for r in out["rows"]:
-                print(r)
+            print(out["message"])
