@@ -183,7 +183,7 @@ class CoordinatorAgent:
         with self.engine.connect() as conn:
             df = pd.read_sql(text(sql_query), con=conn, params=params)
 
-        if df.empty:
+        if df.empty or not fields:
             return {"mode": "no_match", "message": "⚠️ 조건 일치 없음", "rows": None}
 
         return {"mode": "match", "message": "✅ 결과 반환 성공", "rows": df}
@@ -250,7 +250,9 @@ if __name__ == "__main__":
         "우리은행 상품별 금리를 알려줘.",
         "우리은행 예금거래 기본약관 제5조에 대해 설명해줘.",
         "우리은행 예금 거래 기본 약관에 대해 설명",
-        "국민은행 KB 올인원급여통장에 대해 설명해줘."
+        "국민은행 KB 올인원급여통장에 대해 설명해줘.",
+        "fsdljksfd", # 은행상품과 관련없는 질문이나, 이상하게 입력할 경우
+        "KB 스타적금에 대해 설명"
     ]
 
     for q in queries:
