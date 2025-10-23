@@ -23,7 +23,7 @@ def normalize_text(s: str) -> str:
 
 
 # -----------------------
-# 1️⃣ KeywordAnalyzer
+# 1️⃣ KeywordAnalyzer (수정됨)
 # -----------------------
 class KeywordAnalyzer:
     def __init__(self, bank_list, product_list, sim_threshold=78):
@@ -36,7 +36,9 @@ class KeywordAnalyzer:
         info = {}
         q_nospace = query.replace(" ", "")
 
-        # 은행명 감지
+        # -----------------------
+        # ① 은행명 감지
+        # -----------------------
         bank_found = None
         for bank in self.bank_list:
             if bank.replace(" ", "") in q_nospace:
@@ -45,34 +47,42 @@ class KeywordAnalyzer:
                 bank_found = bank
                 break
 
-        # 조항 감지
+        # -----------------------
+        # ② 조항 감지
+        # -----------------------
         clause_match = re.search(r"(?:제\s*)?([0-9]+)\s*(?:조|조항)?", query)
         if clause_match:
             detected.append("조항")
             info["조항"] = f"제{clause_match.group(1)}조"
 
-        # 상품명 fuzzy 탐지
+        # -----------------------
+        # ③ 상품명 fuzzy 탐지
+        # -----------------------
         q_nobank = q_nospace
         if bank_found:
             q_nobank = q_nobank.replace(bank_found.replace(" ", ""), "")
 
         best_prod, best_sim = None, 0
         for prod in self.product_list:
+            prod_norm = prod.replace(" ", "")
             sim = max(
-                fuzz.token_sort_ratio(q_nobank, prod.replace(" ", "")),
-                fuzz.partial_ratio(q_nobank, prod.replace(" ", ""))
+                fuzz.token_sort_ratio(q_nobank, prod_norm),
+                fuzz.partial_ratio(q_nobank, prod_norm)
             )
             if sim > best_sim:
                 best_prod, best_sim = prod, sim
 
+        # ✅ 상품명 인식 강화
         if best_sim >= self.sim_threshold:
             detected.append("상품이름")
             info["상품이름"] = best_prod
-
-        # 후보 텍스트
-        info.setdefault("text_candidate_tokens", []).append(query)
-        if best_prod is None:
+        else:
             info.setdefault("product_candidate_tokens", []).append(q_nobank)
+
+        # -----------------------
+        # ④ 후보 텍스트
+        # -----------------------
+        info.setdefault("text_candidate_tokens", []).append(query)
 
         return detected, info
 
@@ -246,13 +256,14 @@ if __name__ == "__main__":
 
     queries = [
         "국민은행 KB스타 건강적금 6조항에 대해 알려줘.",
-        "국민은행 KB스타 건강 적금에 대해 알려줘.",
+        "국민 은행 KB스타 건강 적금에 대해 알려줘.",
         "우리은행 상품별 금리를 알려줘.",
-        "우리은행 예금거래 기본약관 제5조에 대해 설명해줘.",
+        "우리 은행 예금거래 기본약관 제5조에 대해 설명해줘.",
         "우리은행 예금 거래 기본 약관에 대해 설명",
         "국민은행 KB 올인원급여통장에 대해 설명해줘.",
-        "fsdljksfd", # 은행상품과 관련없는 질문이나, 이상하게 입력할 경우
-        "KB 스타적금에 대해 설명"
+        "fsdljksfd",  # 관련 없는 입력
+        "KB 스타적금에 대해 설명",  # ✅ 은행명 생략, 상품명(상품명: KB 스타적금Ⅲ)만
+        "KB 스타 건강적금 7조항 정보"# ✅ 은행명 생략, 상품명만
     ]
 
     for q in queries:
@@ -265,4 +276,3 @@ if __name__ == "__main__":
             print(out["rows"].head(5))
         else:
             print(out["message"])
-
