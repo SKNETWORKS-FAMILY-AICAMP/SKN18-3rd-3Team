@@ -6,6 +6,7 @@ from sentence_transformers import SentenceTransformer
 from sklearn.metrics.pairwise import cosine_similarity
 import numpy as np
 
+
 # -----------------------
 # 0️⃣ DB 연결 및 임베딩 모델
 # -----------------------
@@ -14,16 +15,38 @@ TABLE = "merged_table"
 engine = create_engine(DB_URI, future=True)
 embed_model = SentenceTransformer("intfloat/multilingual-e5-base")
 
+
 # -----------------------
 # 🔧 유틸 함수: 텍스트 정규화
 # -----------------------
 def normalize_text(s: str) -> str:
-    """문자 + 숫자만 남기고 공백 및 특수문자 제거"""
-    return re.sub(r"[^가-힣A-Za-z0-9]", "", s or "")
+    """문자 + 숫자만 남기고, 공백 및 특수문자 제거 + 로마 숫자(Ⅰ~Ⅹ, I~X) 변환"""
+    if not s:
+        return ""
+
+    # ① 유니코드 로마 숫자 → 아라비아 숫자
+    roman_map = {
+        "Ⅰ": "1", "Ⅱ": "2", "Ⅲ": "3", "Ⅳ": "4", "Ⅴ": "5",
+        "Ⅵ": "6", "Ⅶ": "7", "Ⅷ": "8", "Ⅸ": "9", "Ⅹ": "10"
+    }
+    for r, a in roman_map.items():
+        s = s.replace(r, a)
+
+    # ② ASCII 로마 숫자 (긴 패턴부터 변환)
+    ascii_roman_map = [
+        ("X", "10"), ("IX", "9"), ("VIII", "8"), ("VII", "7"),
+        ("VI", "6"), ("V", "5"), ("IV", "4"), ("III", "3"),
+        ("II", "2"), ("I", "1")
+    ]
+    for r, a in ascii_roman_map:
+        s = re.sub(rf"\b{r}\b", a, s, flags=re.IGNORECASE)
+
+    # ③ 문자 + 숫자만 남기기
+    return re.sub(r"[^가-힣A-Za-z0-9]", "", s)
 
 
 # -----------------------
-# 1️⃣ KeywordAnalyzer (수정됨)
+# 1️⃣ KeywordAnalyzer
 # -----------------------
 class KeywordAnalyzer:
     def __init__(self, bank_list, product_list, sim_threshold=78):
@@ -36,9 +59,7 @@ class KeywordAnalyzer:
         info = {}
         q_nospace = query.replace(" ", "")
 
-        # -----------------------
         # ① 은행명 감지
-        # -----------------------
         bank_found = None
         for bank in self.bank_list:
             if bank.replace(" ", "") in q_nospace:
@@ -47,27 +68,23 @@ class KeywordAnalyzer:
                 bank_found = bank
                 break
 
-        # -----------------------
         # ② 조항 감지
-        # -----------------------
         clause_match = re.search(r"(?:제\s*)?([0-9]+)\s*(?:조|조항)?", query)
         if clause_match:
             detected.append("조항")
             info["조항"] = f"제{clause_match.group(1)}조"
 
-        # -----------------------
         # ③ 상품명 fuzzy 탐지
-        # -----------------------
         q_nobank = q_nospace
         if bank_found:
             q_nobank = q_nobank.replace(bank_found.replace(" ", ""), "")
 
         best_prod, best_sim = None, 0
         for prod in self.product_list:
-            prod_norm = prod.replace(" ", "")
+            prod_norm = normalize_text(prod)
             sim = max(
-                fuzz.token_sort_ratio(q_nobank, prod_norm),
-                fuzz.partial_ratio(q_nobank, prod_norm)
+                fuzz.token_sort_ratio(normalize_text(q_nobank), prod_norm),
+                fuzz.partial_ratio(normalize_text(q_nobank), prod_norm)
             )
             if sim > best_sim:
                 best_prod, best_sim = prod, sim
@@ -79,9 +96,7 @@ class KeywordAnalyzer:
         else:
             info.setdefault("product_candidate_tokens", []).append(q_nobank)
 
-        # -----------------------
-        # ④ 후보 텍스트
-        # -----------------------
+        # 후보 텍스트
         info.setdefault("text_candidate_tokens", []).append(query)
 
         return detected, info
@@ -115,7 +130,7 @@ def match_product_from_db_fuzzy(token: str, col_name="상품이름", limit=200, 
 
 
 # -----------------------
-# 3️⃣ CoordinatorAgent
+# 3️⃣ CoordinatorAgent (Ⅲ→3 변환 포함)
 # -----------------------
 class CoordinatorAgent:
     def __init__(self, db_engine, bank_list, product_list):
@@ -173,8 +188,17 @@ class CoordinatorAgent:
 
             elif f == "상품이름":
                 prod_norm = normalize_text(info[f])
+                # ✅ 유니코드 로마자(Ⅰ~Ⅹ) → 숫자로 변환 후 정규화 검색
                 where_clauses.append(
-                    f"regexp_replace({db_col}, '[^가-힣A-Za-z0-9]', '', 'g') ILIKE :prod_norm"
+                    f"""
+                    regexp_replace(
+                        translate({db_col},
+                            'ⅠⅡⅢⅣⅤⅥⅦⅧⅨⅩ',
+                            '1234567890'
+                        ),
+                        '[^가-힣A-Za-z0-9]', '', 'g'
+                    ) ILIKE :prod_norm
+                    """
                 )
                 params["prod_norm"] = f"%{prod_norm}%"
 
@@ -230,19 +254,16 @@ class CoordinatorAgent:
 
 
 # -----------------------
-# 4️⃣ 실행
+# 4️⃣ 실행 (테스트 질의 반영)
 # -----------------------
 if __name__ == "__main__":
     with engine.connect() as conn:
-        # 은행명 목록
         bank_query = text(f"SELECT DISTINCT 은행명 FROM {TABLE} WHERE 은행명 IS NOT NULL;")
         bank_rows = conn.execute(bank_query).fetchall()
         banks = [r[0] for r in bank_rows if r[0]]
 
-        # 상품이름 또는 상품명 컬럼 확인 후 조회
         inspector = inspect(engine)
         cols = [col['name'] for col in inspector.get_columns(TABLE)]
-
         product_col = "상품이름" if "상품이름" in cols else "상품명"
         prod_query = text(f"SELECT DISTINCT {product_col} FROM {TABLE} WHERE {product_col} IS NOT NULL;")
         prod_rows = conn.execute(prod_query).fetchall()
@@ -251,9 +272,9 @@ if __name__ == "__main__":
     print(f"✅ 불러온 은행 목록 ({len(banks)}개):", banks)
     print(f"✅ 불러온 상품 목록 ({len(products)}개):", products)
 
-    # Agent 초기화
     agent = CoordinatorAgent(engine, banks, products)
 
+    # ✅ 요청하신 테스트 질의 11개
     queries = [
         "국민은행 KB스타 건강적금 6조항에 대해 알려줘.",
         "국민 은행 KB스타 건강 적금에 대해 알려줘.",
@@ -261,9 +282,11 @@ if __name__ == "__main__":
         "우리 은행 예금거래 기본약관 제5조에 대해 설명해줘.",
         "우리은행 예금 거래 기본 약관에 대해 설명",
         "국민은행 KB 올인원급여통장에 대해 설명해줘.",
-        "fsdljksfd",  # 관련 없는 입력
-        "KB 스타적금에 대해 설명",  # ✅ 은행명 생략, 상품명(상품명: KB 스타적금Ⅲ)만
-        "KB 스타 건강적금 7조항 정보"# ✅ 은행명 생략, 상품명만
+        "fsdljksfd",
+        "KB 스타적금에 대해 설명",
+        "KB 스타 건강적금 7조항 정보",
+        "KB 스타적금III의 제2조",    # ✅ ASCII 로마자
+        "KB스타적금Ⅲ 조항 3"          # ✅ 유니코드 로마자
     ]
 
     for q in queries:
@@ -273,6 +296,6 @@ if __name__ == "__main__":
 
         if out["mode"] == "match":
             print(out["message"])
-            print(out["rows"].head(5))
+            print(out["rows"].head(3))
         else:
             print(out["message"])
