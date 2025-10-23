@@ -15,6 +15,14 @@ engine = create_engine(DB_URI, future=True)
 embed_model = SentenceTransformer("intfloat/multilingual-e5-base")
 
 # -----------------------
+# 🔧 유틸 함수: 텍스트 정규화
+# -----------------------
+def normalize_text(s: str) -> str:
+    """문자 + 숫자만 남기고 공백 및 특수문자 제거"""
+    return re.sub(r"[^가-힣A-Za-z0-9]", "", s or "")
+
+
+# -----------------------
 # 1️⃣ KeywordAnalyzer
 # -----------------------
 class KeywordAnalyzer:
@@ -38,7 +46,7 @@ class KeywordAnalyzer:
                 break
 
         # 조항 감지
-        clause_match = re.search(r"(?:제\s*)?([0-9]+)\s*(?:조|조항)", query)
+        clause_match = re.search(r"(?:제\s*)?([0-9]+)\s*(?:조|조항)?", query)
         if clause_match:
             detected.append("조항")
             info["조항"] = f"제{clause_match.group(1)}조"
@@ -61,7 +69,7 @@ class KeywordAnalyzer:
             detected.append("상품이름")
             info["상품이름"] = best_prod
 
-        # 후보 텍스트 추가
+        # 후보 텍스트
         info.setdefault("text_candidate_tokens", []).append(query)
         if best_prod is None:
             info.setdefault("product_candidate_tokens", []).append(q_nobank)
@@ -70,34 +78,34 @@ class KeywordAnalyzer:
 
 
 # -----------------------
-# 2️⃣ DB 상품명 fuzzy/partial match
+# 2️⃣ DB 상품 fuzzy match
 # -----------------------
 def match_product_from_db_fuzzy(token: str, col_name="상품이름", limit=200, sim_threshold=70):
     pat = f"%{token.replace(' ', '')}%"
     sql = text(f"SELECT DISTINCT {col_name} FROM {TABLE} WHERE {col_name} ILIKE :pat LIMIT :limit")
-    
+
     with engine.connect() as conn:
         rows = conn.execute(sql, {"pat": pat, "limit": limit}).fetchall()
-    
+
     candidates = [r[0] for r in rows if r[0] is not None]
     if not candidates:
         return None, 0
-    
-    # 완전 일치
+
+    # 완전 일치 우선
     for c in candidates:
-        if c.replace(" ", "") == token.replace(" ", ""):
+        if normalize_text(c) == normalize_text(token):
             return c, 100
-    
+
     # fuzzy 매칭
     best = process.extractOne(token, candidates, scorer=fuzz.token_sort_ratio)
     if best and best[1] >= sim_threshold:
         return best[0], int(best[1])
-    
+
     return None, 0
 
 
 # -----------------------
-# 3️⃣ CoordinatorAgent 통합
+# 3️⃣ CoordinatorAgent
 # -----------------------
 class CoordinatorAgent:
     def __init__(self, db_engine, bank_list, product_list):
@@ -124,7 +132,7 @@ class CoordinatorAgent:
         print("👉 감지된 필드:", fields)
         print("👉 초기 매칭정보:", info)
 
-        # 1️⃣ DB fuzzy 매칭
+        # DB fuzzy 매칭
         if "상품이름" not in info and info.get("product_candidate_tokens"):
             for tok in info["product_candidate_tokens"]:
                 matched_prod, score = match_product_from_db_fuzzy(tok, col_name=self.field_map["상품이름"])
@@ -135,27 +143,36 @@ class CoordinatorAgent:
                         fields.append("상품이름")
                     break
 
-        # 2️⃣ WHERE 절 구성
+        # WHERE 절 구성
         where_clauses = []
         params = {}
+
         for f in fields:
             db_col = self.field_map.get(f)
             if not db_col:
                 continue
+
             if f == "조항":
-                num = re.search(r"\d+", info["조항"])
-                if num:
-                    where_clauses.append(f"{db_col}::text ILIKE :clause")
-                    params["clause"] = f"%{num.group()}%"
+                num_match = re.search(r"\d+", info["조항"])
+                if num_match:
+                    clause_num = num_match.group(0)
+                    where_clauses.append(
+                        f"regexp_replace({db_col}::text, '[^0-9]', '', 'g') ILIKE :clause_num"
+                    )
+                    params["clause_num"] = f"%{clause_num}%"
+
             elif f == "상품이름":
-                where_clauses.append(f"{db_col} ILIKE :prod_pat")
-                params["prod_pat"] = f"%{info[f].replace(' ', '')}%"
+                prod_norm = normalize_text(info[f])
+                where_clauses.append(
+                    f"regexp_replace({db_col}, '[^가-힣A-Za-z0-9]', '', 'g') ILIKE :prod_norm"
+                )
+                params["prod_norm"] = f"%{prod_norm}%"
+
             else:
                 where_clauses.append(f"{db_col} = :{f}")
                 params[f] = info[f]
 
-        base = f"SELECT * FROM {TABLE}"
-        sql_query = base
+        sql_query = f"SELECT * FROM {TABLE}"
         if where_clauses:
             sql_query += " WHERE " + " AND ".join(where_clauses)
         sql_query += " LIMIT 50"
@@ -166,7 +183,6 @@ class CoordinatorAgent:
         with self.engine.connect() as conn:
             df = pd.read_sql(text(sql_query), con=conn, params=params)
 
-        # 결과 반환 (항상 딕셔너리 형태)
         if df.empty:
             return {"mode": "no_match", "message": "⚠️ 조건 일치 없음", "rows": None}
 
@@ -175,7 +191,10 @@ class CoordinatorAgent:
     def semantic_search(self, query, top_k=3, max_rows=1000):
         if "text" not in self.field_map:
             return []
-        sql = text(f"SELECT text, 은행명, {self.field_map.get('상품이름','상품명')}, 조항 FROM {TABLE} WHERE text IS NOT NULL LIMIT :max_rows")
+        sql = text(
+            f"SELECT text, 은행명, {self.field_map.get('상품이름','상품명')}, 조항 FROM {TABLE} "
+            "WHERE text IS NOT NULL LIMIT :max_rows"
+        )
         with self.engine.connect() as conn:
             df = pd.read_sql(sql, con=conn, params={"max_rows": max_rows})
 
@@ -194,7 +213,7 @@ class CoordinatorAgent:
                 "text": texts[i],
                 "score": float(sims[i]),
                 "은행명": df.iloc[i].get("은행명"),
-                "상품이름": df.iloc[i].get(self.field_map.get("상품이름","상품명")),
+                "상품이름": df.iloc[i].get(self.field_map.get("상품이름", "상품명")),
                 "조항": df.iloc[i].get("조항")
             })
         return results
@@ -211,8 +230,10 @@ if __name__ == "__main__":
 
     queries = [
         "국민은행 KB스타 건강적금 6조항에 대해 알려줘.",
+        "국민은행 KB스타 건강 적금에 대해 알려줘.",
         "우리은행 상품별 금리를 알려줘.",
         "우리은행 예금거래 기본약관 제5조에 대해 설명해줘.",
+        "우리은행 예금 거래 기본 약관에 대해 설명"
         "국민은행 KB 올인원급여통장에 대해 설명해줘."
     ]
 
