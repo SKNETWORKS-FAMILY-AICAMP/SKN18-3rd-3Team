@@ -262,6 +262,7 @@ def query_agent(user_query: str):
 - 폐업한 사람의 정책자금관련 대출상품
 - 담보대출 상품
 - 국민은행 오피스텔구입자금대출 대출액 말해줘
+- 국민은행 KB비상금대출에 대해 설명
 """
 if __name__ == "__main__":
     print("💬 대출상품 SQL Agent 실행 중...\n")
@@ -279,7 +280,7 @@ if __name__ == "__main__":
     # llm이 인식할 수 있게 csv로 변환 => String형식으로 변환
     try:
         print("<llm(prompt)에 전달되는 내용>")
-        csv_result = result.to_csv(index=False)
+        csv_result = result[["은행명", "상품명", "종류", "상세종류", "대출대상", "대출조건", "대출기간", "대출한도"]].to_csv(index=False)
         print(csv_result) # str 형식임
     except:
         print("해당 정보를 찾을 수 없습니다.")
