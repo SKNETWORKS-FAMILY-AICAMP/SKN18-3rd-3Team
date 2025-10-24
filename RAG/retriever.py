@@ -3,8 +3,8 @@
 from typing import List, Optional, Dict
 from langchain.schema import Document
 
-from RAG.vectorstore.pgvector_store import PgVectorStore
-from RAG.core.logger import get_logger
+from rag.vectorstore.pgvector_store import PgVectorStore
+from rag.core.logger import get_logger
 
 
 logger = get_logger(__name__)

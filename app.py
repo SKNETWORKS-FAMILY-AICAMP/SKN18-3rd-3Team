@@ -1,8 +1,8 @@
 """Streamlit UI for Bank RAG Q&A Service"""
 
 import streamlit as st
-from RAG.rag.engine import RAGEngine
-from RAG.core.logger import get_logger
+from rag.engine import RAGEngine
+from rag.core.logger import get_logger
 
 # Page config
 st.set_page_config(
