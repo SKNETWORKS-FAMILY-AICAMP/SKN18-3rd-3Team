@@ -64,9 +64,6 @@ test_*.py
 # Jupyter
 .ipynb_checkpoints/
 
-# Streamlit
-.streamlit/
-
 # Temporary files
 *.tmp
 *.bak
