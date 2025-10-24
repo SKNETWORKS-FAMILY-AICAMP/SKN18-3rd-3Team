@@ -243,3 +243,11 @@ if __name__ == "__main__":
         print("\n" + "=" * 50 + "\n")
         print(result[["대출기간", "대출한도"]])
         print("\n" + "=" * 50 + "\n")
+    
+    # llm이 인식할 수 있게 csv로 변환 => String형식으로 변환
+    try:
+        print("<llm(prompt)에 전달되는 내용>")
+        csv_result = result.to_csv(index=False)
+        print(csv_result) # str 형식임
+    except:
+        print("해당 정보를 찾을 수 없습니다.")
