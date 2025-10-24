@@ -5,16 +5,15 @@ import re
 from typing import Dict, Any, Optional, List
 from jinja2 import Environment, FileSystemLoader
 
-from RAG.core.config import get_config
-from RAG.core.logger import get_logger
-from RAG.db.connection import DatabaseConnection
-from RAG.db.repo import DocumentRepository
-from RAG.embeddings.openai_embed import OpenAIEmbeddings
-from RAG.llm.openai_chat import OpenAIChatModel
-from RAG.vectorstore.pgvector_store import PgVectorStore
-from RAG.rag.retriever import BankRetriever
-from RAG.rag.graph.nodes import GraphNodes
-from RAG.rag.graph.build import build_rag_graph
+from rag.core.config import get_config
+from rag.core.logger import get_logger
+from rag.db.connection import DatabaseConnection
+from rag.db.repo import DocumentRepository
+from rag.embeddings.openai_embed import OpenAIEmbeddings
+from rag.llm.openai_chat import OpenAIChatModel
+from rag.vectorstore.pgvector_store import PgVectorStore
+from rag.retriever import BankRetriever
+from rag.graph.build import build_rag_graph
 
 
 logger = get_logger(__name__)
@@ -107,13 +106,11 @@ class RAGEngine:
         
         # Initialize LangGraph pipeline
         print("🔧 [DEBUG] Building LangGraph pipeline...", flush=True)
-        graph_nodes = GraphNodes(
+        self.graph = build_rag_graph(
             retriever=self.retriever,
             llm=self.llm,
             jinja_env=self.jinja_env
         )
-        print("✓ [DEBUG] Graph nodes created", flush=True)
-        self.graph = build_rag_graph(graph_nodes)
         print("✓ [DEBUG] Graph compiled", flush=True)
         
         total_time = time.time() - start_time
@@ -123,7 +120,7 @@ class RAGEngine:
         if total_time > 10:
             logger.warning(f"⚠️ Initialization took {total_time:.1f}s - this is longer than expected. Check database/API connectivity.")
 
-    
+
     def _extract_metadata_from_query(self, query: str) -> Dict[str, Optional[str]]:
         """
         Extract bank name and product type from query.
@@ -224,7 +221,7 @@ class RAGEngine:
                 "error": str(e)
             }
 
-    
+
     def _generate_answer(self, query: str, documents: List) -> str:
         """
         Generate answer using LLM with retrieved documents.

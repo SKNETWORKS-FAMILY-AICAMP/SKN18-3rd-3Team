@@ -1,7 +1,7 @@
 """LangGraph 조건부 엣지"""
 
 from typing import Dict, Any, Literal
-from RAG.core.logger import get_logger
+from rag.core.logger import get_logger
 
 
 logger = get_logger(__name__)
@@ -22,12 +22,11 @@ class GraphEdges:
         
         Returns:
             "sufficient": 결과가 충분함 -> generate_answer로 이동
-            "retry": 결과가 부족하고 재시도 가능 -> vector_search로 재시도
+            "retry": 결과가 부족하고 재시도 가능 -> rewrite_query로 이동
             "failed": 재시도 불가능 -> generate_answer로 이동 (빈 결과)
         """
         documents = state.get("documents", [])
         retry_count = state.get("retry_count", 0)
-        top_k = state.get("top_k", 8)
         
         num_docs = len(documents)
         
@@ -38,14 +37,9 @@ class GraphEdges:
         
         # 재시도 가능한 경우 (최대 1회)
         if retry_count < 1 and num_docs < 3:
-            state["top_k"] = top_k
             state["retry_count"] = retry_count + 1
-            logger.warning(f"Search results insufficient ({num_docs} docs). Retrying with top_k={top_k} (attempt {retry_count + 1}/2)")
-
-            # 웹 검색                     
+            logger.warning(f"Search results insufficient ({num_docs} docs). Rewriting query (attempt {retry_count + 1}/1)")
             return "retry"
-        
-
         
         # 재시도 불가능 (최대 재시도 도달)
         logger.warning(f"Max retries reached. Proceeding with {num_docs} documents")
