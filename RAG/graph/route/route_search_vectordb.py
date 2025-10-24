@@ -36,13 +36,16 @@ class GraphEdges:
             logger.info(f"Search results sufficient: {num_docs} documents")
             return "sufficient"
         
-        # 재시도 가능한 경우 (최대 2회)
-        if retry_count < 2 and num_docs < 3:
-            new_top_k = top_k + 5
-            state["top_k"] = new_top_k
+        # 재시도 가능한 경우 (최대 1회)
+        if retry_count < 1 and num_docs < 3:
+            state["top_k"] = top_k
             state["retry_count"] = retry_count + 1
-            logger.warning(f"Search results insufficient ({num_docs} docs). Retrying with top_k={new_top_k} (attempt {retry_count + 1}/2)")
+            logger.warning(f"Search results insufficient ({num_docs} docs). Retrying with top_k={top_k} (attempt {retry_count + 1}/2)")
+
+            # 웹 검색                     
             return "retry"
+        
+
         
         # 재시도 불가능 (최대 재시도 도달)
         logger.warning(f"Max retries reached. Proceeding with {num_docs} documents")
