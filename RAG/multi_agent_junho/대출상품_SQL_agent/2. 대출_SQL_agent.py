@@ -20,6 +20,9 @@ engine = create_engine(
 # ============================================================
 _cached_keywords = None
 
+with engine.connect() as conn:
+    conn.execute(text("CREATE EXTENSION IF NOT EXISTS pg_trgm;"))
+    conn.commit()
 
 def load_unique_keywords(force_reload=False):
     """
@@ -97,15 +100,16 @@ def detect_keywords(user_query: str, use_frequency=False):
     def sort_by_priority(lst, freq_dict):
         return sorted(
             lst,
-            key=lambda x: (
-                -len(x),                    # 긴 단어 우선
-                -freq_dict.get(x, 0) if use_frequency else 0,  # 빈도 우선 (옵션)
-                x                           # 알파벳순 tie-break
-            )
+            key=lambda x: (-len(x), -freq_dict.get(x, 0) if use_frequency else 0, x)
         )
 
     unique_kinds = sort_by_priority(unique_kinds, kind_freq)
     unique_targets = sort_by_priority(unique_targets, target_freq)
+
+    exact_kind = next((k for k in unique_kinds if k == normalized_query), None)
+    exact_target = next((t for t in unique_targets if t == normalized_query), None)
+    if exact_kind or exact_target:
+        return exact_kind, exact_target
 
     # ------------------------------------------------------------
     # ✅ 정확 일치 탐지
@@ -146,21 +150,28 @@ def detect_keywords(user_query: str, use_frequency=False):
 # ============================================================
 def generate_sql(user_query: str):
     detected_kind, detected_target = detect_keywords(user_query, use_frequency=False)
-
-    if detected_kind and detected_target:
+    if detected_kind and detected_target and not(detected_kind == "담보대출" and detected_target == "담보대출"):
         sql = text("""
             SELECT * FROM merged_table
             WHERE REPLACE(상세종류, ' ', '') LIKE :kind
-              AND REPLACE(대출대상, ' ', '') LIKE :target
+            AND REPLACE(대출대상, ' ', '') LIKE :target
         """)
         if detected_target == "개인" and "사업" in user_query:
             params = {"kind": f"%{detected_kind}%", "target": f"개인사업자"}
-        elif "근로자" in user_query:
-            params = {"kind": f"%{detected_kind}%", "target": f"근로소득자"}
+        elif detected_target == "개인" and "사업" not in user_query:
+            params = {"kind": f"%{detected_kind}%", "target": f"개인"}
         elif "주택건설업" in user_query.replace(" ", ""):
             params = {"kind": f"%{detected_kind}%", "target": f"주택건설등록업자"}
         else:
             params = {"kind": f"%{detected_kind}%", "target": f"%{detected_target}%"}
+
+    elif "근로자" in user_query:
+        sql = text("""
+            SELECT * FROM merged_table
+            WHERE REPLACE(상세종류, ' ', '') LIKE :kind
+            AND REPLACE(대출대상, ' ', '') LIKE :target
+        """)
+        params = {"kind": f"%{detected_kind}%", "target": f"근로소득자"}
 
     elif detected_kind:
         sql = text("""
@@ -197,7 +208,27 @@ def query_agent(user_query: str):
     df = pd.read_sql(sql, engine, params=params)
 
     if df.empty:
-        return "❌ 조건에 맞는 대출상품을 찾을 수 없습니다."
+        try:
+            print(params['target'])
+            return "❌ 조건에 맞는 대출상품을 찾을 수 없습니다."
+        except:
+            # 상품명 기반 유사 검색 (pg_trgm)
+            print("⚠️ 조건에 맞는 대출상품을 찾을 수 없습니다. 상품명 기반 유사 검색을 시도합니다...")
+        try:
+            sim_sql = text("""
+                SELECT *, similarity(상품명, :name) AS sim
+                FROM merged_table
+                WHERE similarity(상품명, :name) > 0.2
+                ORDER BY sim DESC
+                LIMIT 5;
+            """)
+            sim_df = pd.read_sql(sim_sql, engine, params={"name": user_query.replace(" ", "")})
+            if not sim_df.empty:
+                return sim_df
+            else:
+                return "❌ 상품명 기반으로도 조건에 맞는 대출상품을 찾을 수 없습니다."
+        except Exception as e:
+            return f"⚠️ 상품명 기반 유사 검색 실패: {e}\n[참고] pg_trgm 확장이 설치되어 있는지 확인하세요: CREATE EXTENSION IF NOT EXISTS pg_trgm;"
     else:
         return df
 
@@ -225,11 +256,12 @@ def query_agent(user_query: str):
 - 근로소득자 신용대출 상품
 - 근로자 신용대출 상품
 - 담보 대출 군인 상품
-- 담보 대출 근로자 상품
+- 담보 대출 근로자 상품 => 조회되는 데이터 없음
 - 담보 대출 주택 건설 등록업자 상품
 - 담보대출 주택 건설업 상품
 - 폐업한 사람의 정책자금관련 대출상품
 - 담보대출 상품
+- 국민은행 오피스텔구입자금대출 대출액 말해줘
 """
 if __name__ == "__main__":
     print("💬 대출상품 SQL Agent 실행 중...\n")
