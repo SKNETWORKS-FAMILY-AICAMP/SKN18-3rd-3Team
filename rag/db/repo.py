@@ -3,8 +3,8 @@
 from typing import List, Dict, Any, Optional
 import json
 
-from RAG.db.connection import DatabaseConnection
-from RAG.core.logger import get_logger
+from rag.db.connection import DatabaseConnection
+from rag.core.logger import get_logger
 
 
 logger = get_logger(__name__)

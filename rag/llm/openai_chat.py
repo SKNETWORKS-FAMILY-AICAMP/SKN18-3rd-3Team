@@ -4,7 +4,7 @@ from typing import Optional, List, Dict, Any
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
 
-from RAG.core.logger import get_logger
+from rag.core.logger import get_logger
 
 
 logger = get_logger(__name__)

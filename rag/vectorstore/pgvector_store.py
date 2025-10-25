@@ -3,11 +3,11 @@
 from typing import List, Dict, Any, Optional, Tuple
 from langchain.schema import Document
 
-from RAG.db.connection import DatabaseConnection
-from RAG.embeddings.provider import EmbeddingProvider
-from RAG.vectorstore.types import SearchResult
-from RAG.vectorstore.sql import get_upsert_query, get_search_query
-from RAG.core.logger import get_logger
+from rag.db.connection import DatabaseConnection
+from rag.embeddings.provider import EmbeddingProvider
+from rag.vectorstore.types import SearchResult
+from rag.vectorstore.sql import get_upsert_query, get_search_query
+from rag.core.logger import get_logger
 
 
 logger = get_logger(__name__)

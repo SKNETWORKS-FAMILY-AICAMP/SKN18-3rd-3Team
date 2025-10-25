@@ -5,7 +5,7 @@ from psycopg_pool import ConnectionPool
 from typing import Optional
 from contextlib import contextmanager
 
-from RAG.core.logger import get_logger
+from rag.core.logger import get_logger
 
 
 logger = get_logger(__name__)
