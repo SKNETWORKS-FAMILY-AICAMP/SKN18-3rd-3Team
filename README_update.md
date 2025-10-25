@@ -143,7 +143,7 @@ SKN18-3rd-3Team/
 │
 ├── scripts/
 │   ├── index_data.py                 # 데이터 인덱싱 (최초 1회)
-│   └── test_rag.py                   # ⭐ 수정 (초기화 로직, 임계값 35.0)
+│   └── test.py                   # ⭐ 수정 (초기화 로직, 임계값 35.0)
 │
 ├── data/
 │   ├── final_embedding_data_v7.csv   # Vector DB용 데이터
