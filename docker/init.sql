@@ -8,6 +8,29 @@ CREATE SCHEMA IF NOT EXISTS rag;
 
 COMMENT ON SCHEMA rag IS 'Vector search artifacts for bank clause RAG pipeline';
 
+-- Python RAG 코드용 documents 테이블 (public 스키마)
+CREATE TABLE IF NOT EXISTS documents (
+    id SERIAL PRIMARY KEY,
+    doc_id VARCHAR(255) UNIQUE NOT NULL,
+    chunk_id VARCHAR(255) NOT NULL,
+    embedding vector(1536),
+    content TEXT NOT NULL,
+    bank_name VARCHAR(100) NOT NULL,
+    document_name TEXT NOT NULL,
+    product_type VARCHAR(50) NOT NULL,
+    product_name VARCHAR(255),
+    clause VARCHAR(255),
+    clause_name VARCHAR(255),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- documents 테이블용 인덱스
+CREATE INDEX IF NOT EXISTS documents_bank_name_idx ON documents(bank_name);
+CREATE INDEX IF NOT EXISTS documents_product_type_idx ON documents(product_type);
+CREATE INDEX IF NOT EXISTS documents_doc_id_idx ON documents(doc_id);
+CREATE INDEX IF NOT EXISTS documents_chunk_id_idx ON documents(chunk_id);
+
 -- Bank clause chunks with OpenAI embeddings
 CREATE TABLE IF NOT EXISTS rag.bank_clauses (
     id BIGSERIAL PRIMARY KEY,
@@ -63,7 +86,6 @@ CREATE SCHEMA IF NOT EXISTS rdb;
 CREATE TABLE IF NOT EXISTS rdb.loan_products (
     id BIGSERIAL PRIMARY KEY,
     bank_name TEXT NOT NULL,
-    document_name TEXT NOT NULL,
     product_name TEXT NOT NULL,
     product_category TEXT,
     product_detail_category TEXT,
@@ -71,7 +93,7 @@ CREATE TABLE IF NOT EXISTS rdb.loan_products (
     loan_conditions TEXT,
     loan_period TEXT,
     loan_limit TEXT,
-    source_file TEXT NOT NULL DEFAULT 'final_update_v7.csv',
+    source_file TEXT NOT NULL DEFAULT 'loan_products_RDB.csv',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -90,7 +112,6 @@ BEGIN
         EXECUTE $copy$
             COPY rdb.loan_products (
                 bank_name,
-                document_name,
                 product_name,
                 product_category,
                 product_detail_category,
@@ -99,7 +120,7 @@ BEGIN
                 loan_period,
                 loan_limit
             )
-            FROM '/docker-entrypoint-initdb.d/final_update_v7.csv'
+            FROM '/docker-entrypoint-initdb.d/loan_products_RDB.csv'
             WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
         $copy$;
     EXCEPTION

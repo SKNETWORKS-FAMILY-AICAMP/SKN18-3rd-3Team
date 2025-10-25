@@ -21,7 +21,7 @@ from psycopg import connect  # psycopg3
 from psycopg.rows import dict_row
 
 try:
-    from RAG.core.config import get_config
+    from rag.core.config import get_config
 except ModuleNotFoundError:  # 스크립트 단독 실행 시 루트 경로를 추가
     from pathlib import Path
     import sys
@@ -29,7 +29,7 @@ except ModuleNotFoundError:  # 스크립트 단독 실행 시 루트 경로를 �
     PROJECT_ROOT = Path(__file__).resolve().parents[3]
     if str(PROJECT_ROOT) not in sys.path:
         sys.path.insert(0, str(PROJECT_ROOT))
-    from RAG.core.config import get_config
+    from rag.core.config import get_config
 
 
 # ---------------------------------------------------------------------------
@@ -488,8 +488,8 @@ if __name__ == "__main__":
     try:
         from intent_llm_agent import run_intent_agent  # type: ignore
     except ModuleNotFoundError:
-        from RAG.graph.multiAgent.classify_agent import run_intent_agent  # type: ignore
-    from RAG.llm.get_llm import get_llm_model
+        from rag.graph.multiAgent.classify_agent import run_intent_agent  # type: ignore
+    from rag.llm.get_llm import get_llm_model
 
     model = get_llm_model()
 

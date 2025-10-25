@@ -26,6 +26,14 @@ class State(TypedDict, total=False):
     sql_results: List[Dict[str, Any]]
     vector_contents: List[str]
     vector_sources: List[Dict[str, Any]]
+    
+    # build.py용 추가 필드
+    vector_chunks: List[Dict[str, Any]]      # Vector DB 조회된 청크 리스트
+    vector_chunks_count: int                 # 조회된 청크 개수
+    relevant_chunks: List[Dict[str, Any]]    # 관련성 있는 청크 리스트
+    relevant_chunks_count: int               # 관련 청크 개수
+    answer: str                              # 생성된 최종 답변
+    used_fallback_search: bool               # SQL 결과 없을 때 Classification 기반 검색 사용 여부
 
     debug: Dict[str, Any]
 

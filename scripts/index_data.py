@@ -62,7 +62,7 @@ def main(file_path):
         
         # Initialize indexer
         logger.info("Initializing indexer...")
-        indexer = DocumentIndexer(vectorstore, batch_size=50)
+        indexer = DocumentIndexer(vectorstore, batch_size=20)  # 배치 크기 줄임 (50 → 20)
         
         # Load documents from CSV
         # file_path 파라미터가 있으면 사용, 없으면 기본 경로 시도
@@ -71,8 +71,7 @@ def main(file_path):
         else:
             # 여러 CSV 파일 경로 시도
             csv_paths = [
-                "data/final_embedding_data_v7.csv.csv",
-                "data/final_embedding_data_v4.csv"
+                "data/final_embedding_data_v7.csv",
             ]
             
             csv_path = None
@@ -114,6 +113,6 @@ def main(file_path):
 
 
 if __name__ == "__main__":
-    file_path = "data/final_embedding_data_v4.csv"
+    file_path = "./data/final_embedding_data_v7.csv"
     exit_code = main(file_path)
     sys.exit(exit_code)

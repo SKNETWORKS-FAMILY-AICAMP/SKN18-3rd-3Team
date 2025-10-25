@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS rdb.loan_products (
     loan_conditions TEXT,
     loan_period TEXT,
     loan_limit TEXT,
-    source_file TEXT NOT NULL DEFAULT 'final_update_v4.csv',
+    source_file TEXT NOT NULL DEFAULT 'loan_products_RDB',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -42,7 +42,7 @@ BEGIN
                 loan_period,
                 loan_limit
             )
-            FROM '/docker-entrypoint-initdb.d/final_update_v4.csv'
+            FROM '/docker-entrypoint-initdb.d/loan_products_RDB'
             WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
         $copy$;
     EXCEPTION
