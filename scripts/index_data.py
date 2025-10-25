@@ -72,6 +72,7 @@ def main(file_path):
             # 여러 CSV 파일 경로 시도
             csv_paths = [
                 "data/final_embedding_data_v7.csv",
+                "./data/final_embedding_data_v7.csv",
             ]
             
             csv_path = None
