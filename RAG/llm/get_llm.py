@@ -8,5 +8,6 @@ def get_llm_model():
     """환경 변수에 설정된 OpenAI API 키를 사용하여 ChatOpenAI 모델을 생성합니다."""
     llm = ChatOpenAI(
         model_name="gpt-5-nano",
+        temperature=1.0,
     )
     return llm

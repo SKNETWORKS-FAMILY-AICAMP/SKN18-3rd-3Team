@@ -19,7 +19,7 @@ from RAG.ingestion.load_csv import load_bank_data
 logger = get_logger(__name__)
 
 
-def main():
+def main(file_path):
     """Main indexing function"""
     logger.info("=" * 60)
     logger.info("Starting Bank Data Indexing")
@@ -65,7 +65,7 @@ def main():
         indexer = DocumentIndexer(vectorstore, batch_size=50)
         
         # Load documents from CSV
-        csv_path = "data/final_data.csv"
+        csv_path = file_path
         logger.info(f"Loading documents from {csv_path}...")
         documents = load_bank_data(csv_path)
         logger.info(f"Loaded {len(documents)} documents")
@@ -95,5 +95,6 @@ def main():
 
 
 if __name__ == "__main__":
-    exit_code = main()
+    file_path = "data/final_embedding_data_v4.csv"
+    exit_code = main(file_path)
     sys.exit(exit_code)
