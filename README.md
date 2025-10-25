@@ -34,7 +34,9 @@
 │   ├── ingestion/         # 데이터 로딩 및 인덱싱
 │   └── rag/               # RAG 엔진 및 파이프라인
 ├── data/                  # 데이터 파일
-│   └── final_data.csv
+│   ├── final_embedding_data_v4.csv
+│   ├── final_update_v4.csv
+│   └── RDB2_cleaned.csv
 ├── docker/                # Docker 설정
 │   ├── Dockerfile.app
 │   └── initdb/
@@ -80,7 +82,7 @@ docker-compose up -d
 # 2. 데이터 인덱싱 (최초 1회만 실행)
 docker-compose exec app python scripts/index_data.py
 
-docker-compose exec app python -c "from RAG.db.connection import DatabaseConnection; from RAG.db.repo import DocumentRepository; from RAG.core.config import get_config; config = get_config(); db = DatabaseConnection(config.DB_URL); repo = DocumentRepository(db); print(f'문서 수: {repo.get_document_count()}')"
+docker-compose exec app python -c "from rag.db.connection import DatabaseConnection; from rag.db.repo import DocumentRepository; from rag.core.config import get_config; config = get_config(); db = DatabaseConnection(config.DB_URL); repo = DocumentRepository(db); print(f'문서 수: {repo.get_document_count()}')"
 # 인덱싱되어있는지 확인
 
 # 3. 브라우저에서 접속
@@ -103,6 +105,7 @@ docker-compose down -v
 - 인덱싱은 **최초 1회만** 실행하면 됩니다
 - 데이터는 Docker volume에 저장되어 재시작해도 유지됩니다
 - CSV 데이터 변경 시에만 재인덱싱이 필요합니다
+- `docker compose up --build` 시 `data/final_update_v4.csv`는 `rdb.loan_info`, `data/RDB2_cleaned.csv`는 `rdb.bank_interest_rate` 테이블로 자동 적재됩니다 (초기 1회).
 
 ## 사용 방법
 
@@ -143,7 +146,7 @@ python scripts/index_data.py
 - Docker 재시작 후에도 데이터가 유지되므로 재인덱싱 불필요
 - 인덱싱 완료 여부 확인:
   ```bash
-  docker-compose exec app python -c "from RAG.db.connection import DatabaseConnection; from RAG.db.repo import DocumentRepository; from RAG.core.config import get_config; config = get_config(); db = DatabaseConnection(config.DB_URL); repo = DocumentRepository(db); print(f'인덱싱된 문서 수: {repo.get_document_count()}')"
+  docker-compose exec app python -c "from rag.db.connection import DatabaseConnection; from rag.db.repo import DocumentRepository; from rag.core.config import get_config; config = get_config(); db = DatabaseConnection(config.DB_URL); repo = DocumentRepository(db); print(f'인덱싱된 문서 수: {repo.get_document_count()}')"
   ```
 
 **재인덱싱이 필요한 경우:**

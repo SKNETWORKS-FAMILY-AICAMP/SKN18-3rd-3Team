@@ -7,7 +7,7 @@ SQL Retrieval Agent for loan product metadata.
 주요 기능
 ---------
 - intent 노드가 추출한 은행/상품 정보를 기반으로 파라미터화된 SQL을 생성
-- rdb.loan_products 테이블에서 조건에 맞는 행을 조회
+- rdb.loan_info 테이블에서 조건에 맞는 행을 조회
 - 검색 결과를 바로 사용할 수 있도록 dict 형태로 반환
 """
 
@@ -91,6 +91,29 @@ def _normalize(text: Optional[str]) -> Optional[str]:
     return value or None
 
 
+def _tokenize_keywords(text: Optional[str]) -> List[str]:
+    """질문/상품명에서 검색에 사용할 토큰만 추출."""
+    if not text:
+        return []
+    tokens = re.findall(r"[가-힣A-Za-z0-9]+", text)
+    return [tok for tok in tokens if len(tok) > 1]
+
+
+def _filter_product_tokens(tokens: Iterable[str]) -> List[str]:
+    filtered: List[str] = []
+    seen = set()
+    for tok in tokens:
+        if not tok:
+            continue
+        normalized = tok.strip()
+        if not normalized or normalized in GENERIC_PRODUCT_TOKENS:
+            continue
+        if normalized not in seen:
+            seen.add(normalized)
+            filtered.append(normalized)
+    return filtered
+
+
 def _map_loan_type_to_categories(loan_type: Optional[str]) -> List[str]:
     """classify_node가 반환한 loan_type을 detail category 필터로 변환."""
     if not loan_type:
@@ -103,6 +126,29 @@ def _map_loan_type_to_categories(loan_type: Optional[str]) -> List[str]:
         return list(mapped)
     # 매핑이 없다면 그대로 사용해 LIKE 조건을 구성한다.
     return [key]
+
+
+def _fetch_rate_summary(rates: List[Dict[str, Any]], max_lines: int = 3) -> List[str]:
+    """금리 결과를 간단히 요약한 문자열 목록으로 변환."""
+    if not rates:
+        return []
+    lines: List[str] = ["[금리 정보]"]
+    for rate in rates[:max_lines]:
+        rate_type = rate.get("rate_type") or "-"
+        condition = rate.get("rate_condition") or "-"
+        interest = rate.get("interest_rate") or "-"
+        lines.append(f"- {rate_type} ({condition}): {interest}")
+    if len(rates) > max_lines:
+        lines.append(f"- ...외 {len(rates) - max_lines}건")
+    return lines
+
+
+def _group_rates_by_product(rates: List[Dict[str, Any]]) -> Dict[Tuple[str, str], List[Dict[str, Any]]]:
+    groups: Dict[Tuple[str, str], List[Dict[str, Any]]] = {}
+    for row in rates:
+        key = (row.get("bank_name", ""), row.get("product_name", ""))
+        groups.setdefault(key, []).append(row)
+    return groups
 
 
 def _build_selection_reason(record: "LoanProductRecord") -> str:
@@ -150,13 +196,15 @@ LOAN_TYPE_TO_DETAIL_CATEGORY: Dict[str, Tuple[str, ...]] = {
     "정책자금대출": ("정책자금대출",),
 }
 
+GENERIC_PRODUCT_TOKENS = {"예금", "적금", "대출", "상품", "금리"}
+
 
 # ---------------------------------------------------------------------------
 # SQL DB 조회 에이전트
 # ---------------------------------------------------------------------------
 
 class SQLRetrievalAgent:
-    """rdb.loan_products 테이블에서 질의하는 에이전트."""
+    """rdb.loan_info 테이블에서 질의하는 에이전트."""
 
     def __init__(
         self,
@@ -224,6 +272,62 @@ class SQLRetrievalAgent:
             return match.group(1)
         return None
 
+    def _fetch_interest_rates(
+        self,
+        bank_name: Optional[str],
+        product_name: Optional[str],
+        *,
+        keywords: Optional[List[str]] = None,
+        exact_match: bool = False,
+        limit: int = 20,
+    ) -> List[Dict[str, Any]]:
+        """bank_interest_rate 테이블에서 금리 정보를 조회한다."""
+        params: List[Any] = []
+        conditions: List[str] = []
+
+        if bank_name:
+            conditions.append("bank_name = %s")
+            params.append(bank_name)
+
+        tokens: List[str] = []
+        if product_name:
+            tokens.append(product_name)
+        if keywords:
+            tokens.extend(keywords)
+        tokens = [tok.strip() for tok in tokens if tok and tok.strip()]
+
+        product_conditions: List[str] = []
+        if exact_match and product_name:
+            product_conditions.append("product_name = %s")
+            params.append(product_name)
+        else:
+            for token in tokens:
+                product_conditions.append("product_name ILIKE %s")
+                params.append(f"%{token}%")
+                compact = token.replace(" ", "")
+                if compact and compact != token:
+                    product_conditions.append("REPLACE(product_name, ' ', '') ILIKE %s")
+                    params.append(f"%{compact}%")
+
+        if product_conditions:
+            conditions.append("(" + " OR ".join(product_conditions) + ")")
+
+        if not conditions:
+            return []
+
+        params.append(limit)
+        sql = f"""
+            SELECT bank_name, product_name, product_category, rate_type, rate_condition, interest_rate
+            FROM rdb.bank_interest_rate
+            WHERE {' AND '.join(conditions)}
+            ORDER BY bank_name, product_name, rate_type NULLS LAST, rate_condition NULLS LAST
+            LIMIT %s
+        """
+        with self._connect() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(sql, params)
+                return cur.fetchall()
+
     # -- 공개 메서드 ------------------------------------------------------
 
     def query(
@@ -235,6 +339,7 @@ class SQLRetrievalAgent:
         product_type: Optional[str] = None,
         loan_target: Optional[str] = None,
         loan_type_hint: Optional[str] = None,
+        product_keywords: Optional[List[str]] = None,
         detail_categories: Optional[Iterable[str]] = None,
         loan_period_hint: Optional[str] = None,
         loan_limit_hint: Optional[str] = None,
@@ -242,7 +347,7 @@ class SQLRetrievalAgent:
         debug: bool = False,
     ) -> Tuple[List[LoanProductRecord], Dict[str, Any]] | List[LoanProductRecord]:
         """
-        질문과 intent 정보를 바탕으로 loan_products를 조회한다.
+        질문과 intent 정보를 바탕으로 loan_info를 조회한다.
 
         Parameters
         ----------
@@ -253,6 +358,13 @@ class SQLRetrievalAgent:
         limit: Optional[int]
             반환할 최대 행 수 (기본값 self.default_limit).
         """
+        base_product_tokens = _tokenize_keywords(product_name)
+        merged_tokens = []
+        if product_keywords:
+            merged_tokens.extend(product_keywords)
+        merged_tokens.extend(base_product_tokens)
+        product_tokens = _filter_product_tokens(merged_tokens)
+
         sql_parts = [
             """
             SELECT
@@ -264,7 +376,7 @@ class SQLRetrievalAgent:
                 loan_conditions,
                 loan_period,
                 loan_limit
-            FROM rdb.loan_products
+            FROM rdb.loan_info
             WHERE 1=1
             """
         ]
@@ -277,19 +389,25 @@ class SQLRetrievalAgent:
 
         product_like = self._build_like_pattern(product_name)
         product_like_compact = None
-        product_clause = ""
-        product_params: List[Any] = []
+        product_filter_clauses: List[str] = []
+        product_filter_params: List[Any] = []
         if product_like:
             raw_product = (product_name or "").strip()
             compact = raw_product.replace(" ", "")
             if compact and compact != raw_product:
                 product_like_compact = f"%{compact}%"
             product_conditions = ["product_name ILIKE %s"]
-            product_params.append(product_like)
+            product_filter_params.append(product_like)
             if product_like_compact:
                 product_conditions.append("REPLACE(product_name, ' ', '') ILIKE %s")
-                product_params.append(product_like_compact)
-            product_clause = "AND (" + " OR ".join(product_conditions) + ")"
+                product_filter_params.append(product_like_compact)
+            product_filter_clauses.append("(" + " OR ".join(product_conditions) + ")")
+        if product_tokens:
+            token_conditions: List[str] = []
+            for token in product_tokens:
+                token_conditions.append("product_name ILIKE %s")
+                product_filter_params.append(f"%{token}%")
+            product_filter_clauses.append("(" + " OR ".join(token_conditions) + ")")
 
         type_like = self._build_like_pattern(product_type)
         if type_like:
@@ -321,8 +439,7 @@ class SQLRetrievalAgent:
                     if normalized_prod and normalized_prod in normalized_category:
                         skip_product_filter = True
                         break
-        else:
-            # 상품명이 비어 있으면 필터를 건너뛴다.
+        elif not product_tokens:
             skip_product_filter = True
 
         if detail_category_filters:
@@ -335,9 +452,9 @@ class SQLRetrievalAgent:
             if placeholders:
                 sql_parts.append("AND (" + " OR ".join(placeholders) + ")")
 
-        if product_clause and not skip_product_filter:
-            sql_parts.append(product_clause)
-            params.extend(product_params)
+        if product_filter_clauses and not skip_product_filter:
+            sql_parts.append("AND (" + " OR ".join(product_filter_clauses) + ")")
+            params.extend(product_filter_params)
         else:
             product_like = None
             product_like_compact = None
@@ -363,6 +480,7 @@ class SQLRetrievalAgent:
             "bank_exact": bank_name,
             "product_pattern": product_like,
             "product_pattern_compact": product_like_compact,
+            "product_tokens": product_tokens,
             "type_pattern": type_like,
             "target_exact": loan_target,
             "detected_target": loan_target,
@@ -394,6 +512,11 @@ class SQLRetrievalAgent:
         product_type = _normalize(state.get("product_type"))
         loan_target = _normalize(state.get("loan_target"))
         loan_type = _normalize(state.get("loan_type"))
+        raw_keywords = state.get("raw_keywords") or []
+        raw_keyword_tokens: List[str] = []
+        for kw in raw_keywords:
+            raw_keyword_tokens.extend(_tokenize_keywords(kw))
+        raw_keyword_tokens = _filter_product_tokens(raw_keyword_tokens)
 
         detected_target = loan_target or self._detect_target(question, product_name)
         detected_details = self._detect_detail_categories(question, product_name)
@@ -412,6 +535,11 @@ class SQLRetrievalAgent:
         detail_categories_list = list(dict.fromkeys(detail_categories_list))
 
         detail_categories = detail_categories_list or None
+        product_token_candidates = _tokenize_keywords(product_name)
+        if raw_keyword_tokens:
+            product_token_candidates.extend(raw_keyword_tokens)
+        product_tokens = _filter_product_tokens(product_token_candidates)
+
         product_name_for_query = product_name if not detail_categories_list else None
         debug_snapshot = {
             "detected_target": detected_target,
@@ -432,6 +560,7 @@ class SQLRetrievalAgent:
             detail_categories=detail_categories,
             loan_period_hint=detected_period,
             loan_limit_hint=detected_limit,
+            product_keywords=product_tokens,
             debug=True,
         )
         if isinstance(query_result, tuple):
@@ -443,6 +572,63 @@ class SQLRetrievalAgent:
             debug_info.setdefault(key, value)
 
         if not records:
+            question_tokens = _filter_product_tokens(_tokenize_keywords(question))
+            rate_keywords = product_tokens or raw_keyword_tokens or question_tokens
+            rate_rows = self._fetch_interest_rates(
+                bank_name=bank_name,
+                product_name=product_name,
+                keywords=rate_keywords,
+                exact_match=False,
+            )
+            if rate_rows:
+                grouped = _group_rates_by_product(rate_rows)
+                sql_results: List[Dict[str, Any]] = []
+                sql_contents: List[str] = []
+                rate_debug: List[Dict[str, Any]] = []
+                for (rate_bank, rate_product), group_rows in grouped.items():
+                    summary_lines = _fetch_rate_summary(group_rows)
+                    reason = (
+                        f"- loan_info 테이블에서 일치 항목은 없었지만 '{rate_product}' 금리 데이터를 bank_interest_rate에서 찾았습니다.\n"
+                        f"- 질문 키워드를 기반으로 금리 정보를 제공하는 결과입니다."
+                    )
+                    sql_results.append(
+                        {
+                            "bank_name": rate_bank,
+                            "product_name": rate_product,
+                            "product_category": group_rows[0].get("product_category"),
+                            "interest_rates": group_rows,
+                            "loan_info_match": False,
+                            "selection_reason": reason,
+                        }
+                    )
+                    content_lines = [
+                        f"은행: {rate_bank}",
+                        f"상품명: {rate_product}",
+                    ]
+                    category = group_rows[0].get("product_category")
+                    if category:
+                        content_lines.append(f"종류: {category}")
+                    content = "\n".join(content_lines)
+                    if summary_lines:
+                        content += "\n" + "\n".join(summary_lines)
+                    sql_contents.append(content + "\n" + reason)
+                    rate_debug.append(
+                        {
+                            "bank_name": rate_bank,
+                            "product_name": rate_product,
+                            "rates_found": len(group_rows),
+                            "loan_info_match": False,
+                        }
+                    )
+
+                state["sql_results"] = sql_results
+                state["sql_contents"] = sql_contents
+                debug = state.get("debug") or {}
+                debug_info["interest_rate_lookup"] = rate_debug
+                debug["sql"] = debug_info
+                state["debug"] = debug
+                return state
+
             state["sql_results"] = []
             state["sql_contents"] = []
             debug = state.get("debug") or {}
@@ -450,24 +636,41 @@ class SQLRetrievalAgent:
             state["debug"] = debug
             return state
 
-        reasons: List[str] = []
+        rate_debug: List[Dict[str, Any]] = []
+        sql_results: List[Dict[str, Any]] = []
+        sql_contents: List[str] = []
+
         for record in records:
-            bank = record.bank_name or "미지정 은행"
-            detail = record.product_detail_category or record.product_category or "기타 상품"
-            target = record.loan_target or "대상 미기재"
-            reason_lines = [
-                f"- 질문에서 지정한 은행 '{bank}'와 대출유형 '{detail}'이 일치합니다.",
-                f"- 대출대상 '{target}' 조건이 classify 노드 결과와 부합해 필터를 통과했습니다."
-            ]
-            reasons.append("\n".join(reason_lines))
-        state["sql_results"] = [
-            {**record.__dict__, "selection_reason": reasons[idx]}
-            for idx, record in enumerate(records)
-        ]
-        state["sql_contents"] = [
-            record.to_bullet() + "\n" + reasons[idx] for idx, record in enumerate(records)
-        ]
+            reason = _build_selection_reason(record)
+            rates = self._fetch_interest_rates(
+                record.bank_name, record.product_name, exact_match=True
+            )
+            rate_debug.append(
+                {
+                    "bank_name": record.bank_name,
+                    "product_name": record.product_name,
+                    "rates_found": len(rates),
+                    "loan_info_match": True,
+                }
+            )
+
+            record_dict = record.__dict__.copy()
+            record_dict["selection_reason"] = reason
+            record_dict["loan_info_match"] = True
+            if rates:
+                record_dict["interest_rates"] = rates
+            sql_results.append(record_dict)
+
+            summary_lines = _fetch_rate_summary(rates)
+            bullet = record.to_bullet()
+            if summary_lines:
+                bullet = bullet + "\n" + "\n".join(summary_lines)
+            sql_contents.append(bullet + "\n" + reason)
+
+        state["sql_results"] = sql_results
+        state["sql_contents"] = sql_contents
         debug = state.get("debug") or {}
+        debug_info["interest_rate_lookup"] = rate_debug
         debug["sql"] = debug_info
         state["debug"] = debug
         return state
@@ -489,39 +692,36 @@ if __name__ == "__main__":
         from intent_llm_agent import run_intent_agent  # type: ignore
     except ModuleNotFoundError:
         from rag.graph.multiAgent.classify_agent import run_intent_agent  # type: ignore
-    from rag.llm.get_llm import get_llm_model
+    from rag.llm.llm import get_llm_model
 
     model = get_llm_model()
 
-    question = "우리은행 전세자금대출 알려줘"
+    question = "광복 적금 금리 말해줘."
     intent_result = run_intent_agent(question, llm=model, debug=True)
     print("=== Intent Result ===")
     print(json.dumps(intent_result, ensure_ascii=False, indent=2))
 
     # classify_node → SQL 노드 연결 흐름을 단독으로 검증하기 위한 샘플 실행
     agent = SQLRetrievalAgent()
-    query = agent.query(
-        question=question,
-        bank_name=intent_result.get("bank_name"),
-        product_name=intent_result.get("product_name"),
-        product_type=intent_result.get("product_type"),
-        loan_target=intent_result.get("loan_target"),
-        loan_type_hint=intent_result.get("loan_type"),
-        debug=True,
-    )
-
-    if isinstance(query, tuple):
-        records, debug_info = query
-    else:
-        records, debug_info = query, {}
+    state = intent_result.copy()
+    state["question"] = question
+    state = agent.run(state)
 
     print("\n=== SQL Debug Info ===")
-    print(json.dumps(debug_info, ensure_ascii=False, indent=2))
+    print(json.dumps(state.get("debug", {}).get("sql", {}), ensure_ascii=False, indent=2))
 
     print("\n=== SQL Records ===")
-    if not records:
+    results = state.get("sql_results") or []
+    if not results:
         print("검색 결과가 없습니다.")
     else:
-        for idx, record in enumerate(records, start=1):
-            print(f"[{idx}] {record.to_bullet()}\n")
+        for idx, record in enumerate(results, start=1):
+            print(f"[{idx}] {record.get('bank_name')} - {record.get('product_name')}")
+            if "interest_rates" in record:
+                summary = _fetch_rate_summary(record["interest_rates"])
+                if summary:
+                    print("\n".join(summary))
+            if record.get("selection_reason"):
+                print(record["selection_reason"])
+            print()
 
