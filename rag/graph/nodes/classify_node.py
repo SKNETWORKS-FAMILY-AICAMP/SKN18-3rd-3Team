@@ -1,7 +1,7 @@
 from rag.llm.get_llm import get_llm_model
-from intent_llm_agent import run_intent_agent
+from rag.graph.multiAgent.classify_agent import run_intent_agent
 from typing import Dict
-from .state import State  # 위에 정의한 State TypedDict
+from rag.graph.State import State
 
 def intent_node(state: State) -> State:
     """LLM 기반 intent/키워드 추출 노드"""
@@ -14,24 +14,8 @@ def intent_node(state: State) -> State:
         print(f"LLM 모델 로드 오류: {e}")
         return state
 
-    # 어댑터 함수 정의 (system, user → JSON 문자열)
-    def llm_fn(system_prompt: str, user_prompt: str) -> str:
-        """get_llm_model()로 가져온 LLM을 호출하는 어댑터"""
-        response = llm.invoke(
-            [
-                {"role": "system", "content": system_prompt},
-                {"role": "user", "content": user_prompt},
-            ]
-        )
-        # 모델이 문자열을 반환한다고 가정
-        if isinstance(response, dict) and "text" in response:
-            return response["text"]
-        if isinstance(response, list):
-            return response[0]["text"]
-        return str(response)
-
     # LLM 기반 의도/키워드 분석 실행
-    result: Dict = run_intent_agent(q, llm_fn=llm_fn, debug=True)
+    result: Dict = run_intent_agent(q, llm=llm, debug=True)
 
     # 결과를 state에 반영
     state["intent"] = result.get("intent", "other")
