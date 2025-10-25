@@ -19,7 +19,7 @@ from rag.ingestion.load_csv import load_bank_data
 logger = get_logger(__name__)
 
 
-def main():
+def main(file_path):
     """Main indexing function"""
     logger.info("=" * 60)
     logger.info("Starting Bank Data Indexing")
@@ -65,20 +65,25 @@ def main():
         indexer = DocumentIndexer(vectorstore, batch_size=50)
         
         # Load documents from CSV
-        # 여러 CSV 파일 경로 시도
-        csv_paths = [
-            "data/final_embedding_data_v7.csv.csv",
-        ]
-        
-        csv_path = None
-        for path in csv_paths:
-            if os.path.exists(path):
-                csv_path = path
-                break
-        
-        if not csv_path:
-            logger.error(f"CSV 파일을 찾을 수 없습니다! 확인한 경로: {csv_paths}")
-            return 1
+        # file_path 파라미터가 있으면 사용, 없으면 기본 경로 시도
+        if file_path:
+            csv_path = file_path
+        else:
+            # 여러 CSV 파일 경로 시도
+            csv_paths = [
+                "data/final_embedding_data_v7.csv.csv",
+                "data/final_embedding_data_v4.csv"
+            ]
+            
+            csv_path = None
+            for path in csv_paths:
+                if os.path.exists(path):
+                    csv_path = path
+                    break
+            
+            if not csv_path:
+                logger.error(f"CSV 파일을 찾을 수 없습니다! 확인한 경로: {csv_paths}")
+                return 1
         
         logger.info(f"Loading documents from {csv_path}...")
         documents = load_bank_data(csv_path)
@@ -109,5 +114,6 @@ def main():
 
 
 if __name__ == "__main__":
-    exit_code = main()
+    file_path = "data/final_embedding_data_v4.csv"
+    exit_code = main(file_path)
     sys.exit(exit_code)
