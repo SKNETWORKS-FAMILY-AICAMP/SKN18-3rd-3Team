@@ -8,6 +8,8 @@ services:
       POSTGRES_PASSWORD: postgres
     volumes:
       - ./docker/initdb:/docker-entrypoint-initdb.d
+      - ./data/final_update_v4.csv:/docker-entrypoint-initdb.d/final_update_v4.csv:ro
+      - ./data/RDB2_cleaned.csv:/docker-entrypoint-initdb.d/RDB2_cleaned.csv:ro
       - pgdata:/var/lib/postgresql/data
     ports:
       - "5432:5432"
@@ -33,7 +35,7 @@ services:
         condition: service_healthy
     volumes:
       - ./data:/app/data
-      - ./RAG:/app/RAG
+      - ./rag:/app/rag
     command: streamlit run app.py --server.port=8501 --server.address=0.0.0.0
 
 volumes:

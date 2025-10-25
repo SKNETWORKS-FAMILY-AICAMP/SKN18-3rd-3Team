@@ -4,7 +4,7 @@ import pandas as pd
 from typing import List
 from langchain.schema import Document
 
-from RAG.core.logger import get_logger
+from rag.core.logger import get_logger
 
 
 logger = get_logger(__name__)
