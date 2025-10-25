@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS rag.bank_clauses (
     doc_id TEXT NOT NULL,
     chunk_index INT NOT NULL,
     bank_name TEXT,
+    document_name TEXT,
     product_type TEXT,
     product_name TEXT,
     clause_number TEXT,
@@ -62,6 +63,7 @@ CREATE SCHEMA IF NOT EXISTS rdb;
 CREATE TABLE IF NOT EXISTS rdb.loan_products (
     id BIGSERIAL PRIMARY KEY,
     bank_name TEXT NOT NULL,
+    document_name TEXT NOT NULL,
     product_name TEXT NOT NULL,
     product_category TEXT,
     product_detail_category TEXT,
@@ -69,7 +71,7 @@ CREATE TABLE IF NOT EXISTS rdb.loan_products (
     loan_conditions TEXT,
     loan_period TEXT,
     loan_limit TEXT,
-    source_file TEXT NOT NULL DEFAULT 'final_update_v4.csv',
+    source_file TEXT NOT NULL DEFAULT 'final_update_v7.csv',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -88,6 +90,7 @@ BEGIN
         EXECUTE $copy$
             COPY rdb.loan_products (
                 bank_name,
+                document_name,
                 product_name,
                 product_category,
                 product_detail_category,
@@ -96,7 +99,7 @@ BEGIN
                 loan_period,
                 loan_limit
             )
-            FROM '/docker-entrypoint-initdb.d/final_update_v4.csv'
+            FROM '/docker-entrypoint-initdb.d/final_update_v7.csv'
             WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
         $copy$;
     EXCEPTION
