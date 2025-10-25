@@ -78,6 +78,16 @@ def _dedup(seq: List[str]) -> List[str]:
             seen.add(x)
     return out
 
+
+def _tokenize_keywords(*texts: Optional[str]) -> List[str]:
+    tokens: List[str] = []
+    for text in texts:
+        if not text:
+            continue
+        tokens.extend(re.findall(r"[가-힣A-Za-z0-9]+", text))
+    # 한 글자 토큰은 노이즈가 커서 제거
+    return [tok for tok in tokens if len(tok) > 1]
+
 def extract_topk_candidates(question: str, K: int = 6) -> Tuple[List[str], List[str]]:
     """질문에서 은행 후보만 뽑고, 상품 후보는 LLM에 전적으로 맡깁니다."""
     nk_q = norm_key(question)
@@ -328,6 +338,14 @@ def run_intent_agent(
             "reasoning": model_out.get("reasoning") or "",
         }
 
+        # 질문/상품명에서 추가 키워드를 추출해 raw_keywords에 보강
+        extra_tokens = _tokenize_keywords(result.get("product_name"), question)
+        if result.get("bank_name"):
+            extra_tokens.extend(_tokenize_keywords(result.get("bank_name")))
+        if extra_tokens:
+            merged = result["raw_keywords"] + extra_tokens
+            result["raw_keywords"] = _dedup([tok for tok in merged if tok])
+
         # 임계값 미만이면 폴백
         if not result["intent"] or confidence < confidence_threshold:
             rb = rule_based_guess(question)
@@ -360,7 +378,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(PROJECT_ROOT))
 
     # LLM 호출
-    from rag.llm.get_llm import get_llm_model
+    from rag.llm.llm import get_llm_model
 
     model = get_llm_model()
 
