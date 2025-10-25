@@ -84,6 +84,7 @@ class PgVectorStore:
                                 embedding,
                                 doc.page_content,
                                 metadata.get("은행명", ""),
+                                metadata.get("문서명", ""),
                                 metadata.get("상품종류", ""),
                                 metadata.get("상품이름", ""),
                                 metadata.get("조항", ""),
@@ -155,10 +156,11 @@ class PgVectorStore:
                                 "doc_id": row[0],
                                 "chunk_id": row[1],
                                 "은행명": row[3],
-                                "상품종류": row[4],
-                                "상품이름": row[5],
-                                "조항": row[6],
-                                "조항이름": row[7]
+                                "문서명": row[4],
+                                "상품종류": row[5],
+                                "상품이름": row[7],
+                                "조항": row[7],
+                                "조항이름": row[8]
                             }
                         )
                         score = float(row[8])
