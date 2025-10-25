@@ -3,8 +3,8 @@
 from typing import List
 from langchain.schema import Document
 
-from RAG.vectorstore.pgvector_store import PgVectorStore
-from RAG.core.logger import get_logger
+from rag.vectorstore.pgvector_store import PgVectorStore
+from rag.core.logger import get_logger
 
 
 logger = get_logger(__name__)
@@ -113,14 +113,14 @@ class DocumentIndexer:
         Returns:
             Dictionary with indexing statistics
         """
-        from RAG.ingestion.load_csv import load_bank_data_filtered
+        from rag.ingestion.load_csv import load_bank_data_filtered
         
         logger.info(f"Loading documents from {csv_path}")
         
         if bank_name or product_type:
             documents = load_bank_data_filtered(csv_path, bank_name, product_type)
         else:
-            from RAG.ingestion.load_csv import load_bank_data
+            from rag.ingestion.load_csv import load_bank_data
             documents = load_bank_data(csv_path)
         
         logger.info(f"Loaded {len(documents)} documents")
