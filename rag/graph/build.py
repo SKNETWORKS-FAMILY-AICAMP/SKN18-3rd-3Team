@@ -4,8 +4,7 @@ from langgraph.graph import StateGraph, END
 from typing import Dict, Any
 from jinja2 import Environment
 
-from rag.graph.nodes.normalize_query_node import normalize_query
-from rag.graph.nodes.route_metadata_node import route_metadata
+from rag.graph.nodes.classify_node import intent_node
 from rag.graph.nodes.vector_search_node import create_vector_search_node
 from rag.graph.nodes.rewrite_query_node import create_rewrite_query_node
 from rag.graph.nodes.generate_answer_node import create_generate_answer_node
@@ -46,8 +45,7 @@ def build_rag_graph(
     workflow = StateGraph(Dict[str, Any])
     
     # Add nodes
-    workflow.add_node("normalize", normalize_query)
-    workflow.add_node("route", route_metadata)
+    workflow.add_node("normalize", intent_node)
     workflow.add_node("search", vector_search)
     workflow.add_node("rewrite", rewrite_query)
     workflow.add_node("generate", generate_answer)

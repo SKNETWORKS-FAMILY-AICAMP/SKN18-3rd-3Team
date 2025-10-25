@@ -6,20 +6,20 @@ import os
 # Add parent directory to path
 sys.path.insert(0, os.path.abspath(os.path.join(os.path.dirname(__file__), "..")))
 
-from RAG.core.config import get_config
-from RAG.core.logger import get_logger
-from RAG.db.connection import DatabaseConnection
-from RAG.db.repo import DocumentRepository
-from RAG.embeddings.openai_embed import OpenAIEmbeddings
-from RAG.vectorstore.pgvector_store import PgVectorStore
-from RAG.ingestion.indexer import DocumentIndexer
-from RAG.ingestion.load_csv import load_bank_data
+from rag.core.config import get_config
+from rag.core.logger import get_logger
+from rag.db.connection import DatabaseConnection
+from rag.db.repo import DocumentRepository
+from rag.embeddings.openai_embed import OpenAIEmbeddings
+from rag.vectorstore.pgvector_store import PgVectorStore
+from rag.ingestion.indexer import DocumentIndexer
+from rag.ingestion.load_csv import load_bank_data
 
 
 logger = get_logger(__name__)
 
 
-def main():
+def main(file_path):
     """Main indexing function"""
     logger.info("=" * 60)
     logger.info("Starting Bank Data Indexing")
@@ -65,7 +65,7 @@ def main():
         indexer = DocumentIndexer(vectorstore, batch_size=50)
         
         # Load documents from CSV
-        csv_path = "data/final_data.csv"
+        csv_path = file_path
         logger.info(f"Loading documents from {csv_path}...")
         documents = load_bank_data(csv_path)
         logger.info(f"Loaded {len(documents)} documents")
@@ -95,5 +95,6 @@ def main():
 
 
 if __name__ == "__main__":
-    exit_code = main()
+    file_path = "data/final_embedding_data_v4.csv"
+    exit_code = main(file_path)
     sys.exit(exit_code)
