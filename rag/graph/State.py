@@ -1,14 +1,22 @@
-from typing import TypedDict, List, Dict, Any
+from typing import TypedDict, List, Dict, Any, Optional
 from langchain_core.documents import Document
 
-class State(TypedDict):
+class State(TypedDict, total=False):
+    # 입력
     question: str
 
-    # 질문 분석
-    bank_name: str
-    product_name: str
-    intent: str
-    clause_keywords: List[str]
+    # 질문 분석(LLM/정규화 결과)
+    intent: str                              # rate_fee_lookup | clause_lookup | compare | definition | other
+    clause_keywords: List[str]               # ["rate","fee","early_close","preferential","eligibility"]
+    bank_name: Optional[str]
+    product_name: Optional[str]
+    product_type: Optional[str]              # "예금" | "적금" | "대출" | None
+    loan_type: Optional[str]                 # (product_type=="대출"일 때) 지정된 7종 또는 None
+    loan_target: Optional[str]               # (product_type=="대출"일 때) 지정된 대상 또는 None
+    applicability_hint: Optional[bool]       # 선택: 적용 가능성 힌트
+    raw_keywords: List[str]                  # 모델이 뽑은 원시 키워드
+    confidence: float                        # 0.0~1.0
+    reasoning: str                           # 간단 근거
 
     # vectordb 검색
     contents: List[str]
