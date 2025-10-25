@@ -25,7 +25,7 @@ services:
       # 초기화 SQL 스크립트 자동 실행
       # docker-compose 실행 시 init.sql을 이용해 테이블 생성/pgvector 확장 자동 설치
       - ./init.sql:/docker-entrypoint-initdb.d/init.sql
-      - ../data/final_embedding_data_v7.csv:/docker-entrypoint-initdb.d/final_update_v4.csv:ro
+      - ../data/final_embedding_data_v7.csv:/docker-entrypoint-initdb.d/final_embedding_data_v7:ro
 
     healthcheck:
       # PostgreSQL이 정상적으로 실행 중인지 확인

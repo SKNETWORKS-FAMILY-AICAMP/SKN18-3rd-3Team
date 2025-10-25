@@ -1,4 +1,4 @@
-from RAG.llm.get_llm import get_llm_model
+from rag.llm.get_llm import get_llm_model
 from intent_llm_agent import run_intent_agent
 from typing import Dict
 from .state import State  # 위에 정의한 State TypedDict

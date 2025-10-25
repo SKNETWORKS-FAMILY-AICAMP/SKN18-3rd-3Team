@@ -360,7 +360,7 @@ if __name__ == "__main__":
     sys.path.insert(0, str(PROJECT_ROOT))
 
     # LLM 호출
-    from RAG.llm.get_llm import get_llm_model
+    from rag.llm.get_llm import get_llm_model
 
     model = get_llm_model()
 
