@@ -8,9 +8,10 @@ def get_create_table_query() -> str:
         id SERIAL PRIMARY KEY,
         doc_id VARCHAR(255) UNIQUE NOT NULL,
         chunk_id VARCHAR(255) NOT NULL,
-        embedding vector(3072),
+        embedding vector(1536),
         content TEXT NOT NULL,
         bank_name VARCHAR(100) NOT NULL,
+        document_name TEXT NOT NULL,
         product_type VARCHAR(50) NOT NULL,
         product_name VARCHAR(255),
         clause VARCHAR(255),
@@ -63,13 +64,14 @@ def get_upsert_query() -> str:
     return """
     INSERT INTO documents (
         doc_id, chunk_id, embedding, content,
-        bank_name, product_type, product_name, clause, clause_name
-    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
+        bank_name, document_name, product_type, product_name, clause, clause_name
+    ) VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s, %s)
     ON CONFLICT (doc_id) DO UPDATE SET
         chunk_id = EXCLUDED.chunk_id,
         embedding = EXCLUDED.embedding,
         content = EXCLUDED.content,
         bank_name = EXCLUDED.bank_name,
+        document_name = EXCLUDED.document_name,
         product_type = EXCLUDED.product_type,
         product_name = EXCLUDED.product_name,
         clause = EXCLUDED.clause,
@@ -103,7 +105,7 @@ def get_search_query(filters: dict = None) -> tuple:
     query = f"""
     SELECT 
         doc_id, chunk_id, content,
-        bank_name, product_type, product_name, clause, clause_name,
+        bank_name, document_name, product_type, product_name, clause, clause_name,
         1 - (embedding <=> %s::vector) as similarity
     FROM documents
     {where_sql}
