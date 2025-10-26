@@ -724,4 +724,3 @@ if __name__ == "__main__":
             if record.get("selection_reason"):
                 print(record["selection_reason"])
             print()
-

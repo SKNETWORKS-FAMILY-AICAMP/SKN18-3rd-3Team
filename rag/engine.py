@@ -10,10 +10,10 @@ from rag.core.logger import get_logger
 from rag.db.connection import DatabaseConnection
 from rag.db.repo import DocumentRepository
 from rag.embeddings.openai_embed import OpenAIEmbeddings
-from rag.llm.openai_chat import OpenAIChatModel
+from rag.llm.get_llm import get_llm_model
 from rag.vectorstore.pgvector_store import PgVectorStore
 from rag.retriever import BankRetriever
-from rag.graph.build import build_rag_graph
+from rag.graph.build import create_rag_system
 
 
 logger = get_logger(__name__)
@@ -36,40 +36,39 @@ class RAGEngine:
         logger.info("🚀 Initializing RAG Engine...")
         
         # Load configuration
-        print("📊 [DEBUG] [1/8] Loading configuration...", flush=True)
-        logger.info("📊 [1/8] Loading configuration...")
+        print("📊 [DEBUG] [1/7] Loading configuration...", flush=True)
+        logger.info("📊 [1/7] Loading configuration...")
         self.config = get_config()
         print(f"✓ [DEBUG] Configuration loaded ({time.time() - start_time:.1f}s)", flush=True)
         logger.info(f"✓ Configuration loaded ({time.time() - start_time:.1f}s)")
         
         # Initialize database connection
-        print("🗄️ [DEBUG] [2/8] Configuring database connection...", flush=True)
-        logger.info("🗄️ [2/8] Configuring database connection...")
-        self.db = DatabaseConnection(self.config.DB_URL)
+        print("🗄️ [DEBUG] [2/7] Configuring database connection...", flush=True)
+        logger.info("🗄️ [2/7] Configuring database connection...")
+        self.db = DatabaseConnection(db_url=self.config.DB_URL)
         print(f"✓ [DEBUG] Database configured ({time.time() - start_time:.1f}s)", flush=True)
         logger.info(f"✓ Database configured ({time.time() - start_time:.1f}s)")
         
         # Initialize repository
-        print("📚 [DEBUG] [3/8] Initializing repository...", flush=True)
-        logger.info("📚 [3/8] Initializing repository...")
+        print("📚 [DEBUG] [3/7] Initializing repository...", flush=True)
+        logger.info("📚 [3/7] Initializing repository...")
         self.repo = DocumentRepository(self.db)
         print(f"✓ [DEBUG] Repository ready ({time.time() - start_time:.1f}s)", flush=True)
         logger.info(f"✓ Repository ready ({time.time() - start_time:.1f}s)")
         
         # Initialize embeddings
-        print(f"🔤 [DEBUG] [4/8] Initializing embeddings ({self.config.EMBED_MODEL})...", flush=True)
-        logger.info(f"🔤 [4/8] Initializing embeddings ({self.config.EMBED_MODEL})...")
+        print(f"🔤 [DEBUG] [4/7] Initializing embeddings ({self.config.EMBED_MODEL})...", flush=True)
+        logger.info(f"🔤 [4/7] Initializing embeddings ({self.config.EMBED_MODEL})...")
         self.embeddings = OpenAIEmbeddings(
             model=self.config.EMBED_MODEL,
-            api_key=self.config.OPENAI_API_KEY,
-            timeout=self.config.OPENAI_TIMEOUT
+            api_key=self.config.OPENAI_API_KEY
         )
         print(f"✓ [DEBUG] Embeddings ready ({time.time() - start_time:.1f}s)", flush=True)
         logger.info(f"✓ Embeddings ready ({time.time() - start_time:.1f}s)")
         
         # Initialize vector store
-        print("🔍 [DEBUG] [5/8] Initializing vector store...", flush=True)
-        logger.info("🔍 [5/8] Initializing vector store...")
+        print("🔍 [DEBUG] [5/7] Initializing vector store...", flush=True)
+        logger.info("🔍 [5/7] Initializing vector store...")
         self.vectorstore = PgVectorStore(
             connection=self.db,
             embeddings=self.embeddings
@@ -78,40 +77,31 @@ class RAGEngine:
         logger.info(f"✓ Vector store ready ({time.time() - start_time:.1f}s)")
         
         # Initialize retriever
-        print("📖 [DEBUG] [6/8] Initializing retriever...", flush=True)
-        logger.info("📖 [6/8] Initializing retriever...")
-        self.retriever = BankRetriever(self.vectorstore)
+        print("📖 [DEBUG] [6/7] Initializing retriever...", flush=True)
+        logger.info("📖 [6/7] Initializing retriever...")
+        self.retriever = BankRetriever(vectorstore=self.vectorstore)
         print(f"✓ [DEBUG] Retriever ready ({time.time() - start_time:.1f}s)", flush=True)
         logger.info(f"✓ Retriever ready ({time.time() - start_time:.1f}s)")
         
         # Initialize LLM
-        print(f"🤖 [DEBUG] [7/8] Initializing LLM ({self.config.LLM_MODEL})...", flush=True)
-        logger.info(f"🤖 [7/8] Initializing LLM ({self.config.LLM_MODEL})...")
-        # gpt-5-nano는 temperature=1만 지원하므로 기본값 사용
-        self.llm = OpenAIChatModel(
-            model=self.config.LLM_MODEL,
-            api_key=self.config.OPENAI_API_KEY,
-            timeout=self.config.OPENAI_TIMEOUT,
-            temperature=1.0  # gpt-5-nano는 1.0만 지원
-        )
+        print("🤖 [DEBUG] [7/7] Initializing LLM (gpt-5-nano)...", flush=True)
+        logger.info("🤖 [7/7] Initializing LLM (gpt-5-nano)...")
+        self.llm = get_llm_model()
         print(f"✓ [DEBUG] LLM ready ({time.time() - start_time:.1f}s)", flush=True)
         logger.info(f"✓ LLM ready ({time.time() - start_time:.1f}s)")
         
-        # Initialize Jinja2 environment for prompts
-        print("📝 [DEBUG] [8/8] Loading prompt templates and building graph...", flush=True)
-        logger.info("📝 [8/8] Loading prompt templates and building graph...")
-        template_dir = os.path.join(os.path.dirname(__file__), "prompts")
-        self.jinja_env = Environment(loader=FileSystemLoader(template_dir))
-        print("✓ [DEBUG] Jinja2 templates loaded", flush=True)
-        
-        # Initialize LangGraph pipeline
-        print("🔧 [DEBUG] Building LangGraph pipeline...", flush=True)
-        self.graph = build_rag_graph(
-            retriever=self.retriever,
+        # Initialize RAG system (Multi-Agent)
+        print("🔧 [DEBUG] Building Multi-Agent RAG system...", flush=True)
+        logger.info("🔧 Building Multi-Agent RAG system...")
+        self.graph = create_rag_system(
             llm=self.llm,
-            jinja_env=self.jinja_env
+            retriever=self.retriever,
+            top_k=8,
+            relevance_threshold=35.0,  # test.py와 동일한 임계값
+            enable_routing=False,
+            enable_langsmith=False
         )
-        print("✓ [DEBUG] Graph compiled", flush=True)
+        print("✓ [DEBUG] RAG system compiled", flush=True)
         
         total_time = time.time() - start_time
         print(f"✅ [DEBUG] RAG Engine initialization complete! (Total: {total_time:.1f}s)", flush=True)
@@ -159,7 +149,7 @@ class RAGEngine:
         product_type: Optional[str] = None
     ) -> Dict[str, Any]:
         """
-        Process a query through the LangGraph RAG pipeline.
+        Process a query through the Multi-Agent RAG pipeline.
         
         Args:
             question: User question
@@ -170,47 +160,46 @@ class RAGEngine:
         Returns:
             Dictionary with answer, sources, and metadata
         """
-        logger.info(f"Processing query through LangGraph: {question}")
+        logger.info(f"Processing query through Multi-Agent RAG: {question}")
         
         try:
             # Use config default if not specified
             if top_k is None:
                 top_k = self.config.TOP_K
             
-            # Create initial state
+            # Execute Multi-Agent RAG pipeline
+            logger.info("Executing Multi-Agent RAG pipeline...")
             initial_state = {
-                "query": question,
-                "top_k": top_k,
+                "question": question,
                 "bank_name": bank_name,
-                "product_type": product_type,
-                "documents": [],
-                "answer": "",
-                "sources": [],
-                "retry_count": 0,
-                "error": None
+                "product_type": product_type
             }
+            result = self.graph.invoke(initial_state)
             
-            # Execute LangGraph pipeline
-            logger.info("Executing LangGraph pipeline...")
-            final_state = self.graph.invoke(initial_state)
-            
-            # Extract results from final state
-            result = {
-                "answer": final_state.get("answer", ""),
-                "sources": final_state.get("sources", []),
-                "num_sources": len(final_state.get("sources", [])),
+            # Extract and format results
+            formatted_result = {
+                "answer": result.get("answer", ""),
+                "sources": self._prepare_sources_from_result(result),
+                "num_sources": len(self._prepare_sources_from_result(result)),
                 "filters": {
-                    "bank_name": final_state.get("bank_name"),
-                    "product_type": final_state.get("product_type")
+                    "bank_name": result.get("bank_name"),
+                    "product_type": result.get("product_type")
+                },
+                "debug": {
+                    "intent": result.get("intent"),
+                    "confidence": result.get("confidence", 0.0),
+                    "sql_results_count": len(result.get("sql_results", [])),
+                    "vector_chunks_count": result.get("vector_chunks_count", 0),
+                    "relevant_chunks_count": result.get("relevant_chunks_count", 0)
                 }
             }
             
             # Include error if present
-            if final_state.get("error"):
-                result["error"] = final_state["error"]
+            if result.get("error"):
+                formatted_result["error"] = result["error"]
             
-            logger.info(f"Query processed successfully with {result['num_sources']} sources")
-            return result
+            logger.info(f"Query processed successfully with {formatted_result['num_sources']} sources")
+            return formatted_result
         
         except Exception as e:
             logger.error(f"Failed to process query: {e}", exc_info=True)
@@ -222,60 +211,55 @@ class RAGEngine:
             }
 
 
-    def _generate_answer(self, query: str, documents: List) -> str:
+    def _prepare_sources_from_result(self, result: Dict[str, Any]) -> List[Dict[str, Any]]:
         """
-        Generate answer using LLM with retrieved documents.
+        Prepare source information from Multi-Agent RAG result.
         
         Args:
-            query: User query
-            documents: Retrieved documents
-        
-        Returns:
-            Generated answer
-        """
-        try:
-            # Load prompt template
-            template = self.jinja_env.get_template("answer.j2")
-            
-            # Render prompt
-            prompt = template.render(
-                query=query,
-                documents=documents
-            )
-            
-            # Generate answer
-            system_prompt = "당신은 은행 상품 전문가입니다. 제공된 문서를 기반으로 정확하게 답변하세요."
-            answer = self.llm.generate(
-                system_prompt=system_prompt,
-                user_prompt=prompt,
-                temperature=0.7
-            )
-            
-            return answer
-        
-        except Exception as e:
-            logger.error(f"Failed to generate answer: {e}")
-            return "죄송합니다. 답변 생성 중 오류가 발생했습니다."
-    
-    def _prepare_sources(self, documents: List) -> List[Dict[str, Any]]:
-        """
-        Prepare source information from documents.
-        
-        Args:
-            documents: Retrieved documents
+            result: Result from Multi-Agent RAG pipeline
         
         Returns:
             List of source dictionaries
         """
         sources = []
-        for i, doc in enumerate(documents):
+        
+        # Add SQL results as sources
+        sql_results = result.get("sql_results", [])
+        for i, product in enumerate(sql_results):
             source = {
                 "index": i + 1,
-                "bank_name": doc.metadata.get("은행명", ""),
-                "product_name": doc.metadata.get("상품이름", ""),
-                "clause": doc.metadata.get("조항", ""),
-                "clause_name": doc.metadata.get("조항이름", ""),
-                "content_preview": doc.page_content[:200] + "..." if len(doc.page_content) > 200 else doc.page_content
+                "source_type": "sql",
+                "bank_name": product.get("bank_name", ""),
+                "product_name": product.get("product_name", ""),
+                "product_category": product.get("product_category", ""),
+                "loan_target": product.get("loan_target", ""),
+                "loan_period": product.get("loan_period", ""),
+                "loan_limit": product.get("loan_limit", ""),
+                "clause": "",  # SQL 결과에는 clause 없음
+                "clause_name": "",  # SQL 결과에는 clause_name 없음
+                "document_name": "",  # SQL 결과에는 document_name 없음
+                "relevance_score": 0.0,  # SQL 결과에는 관련성 점수 없음
+                "content_preview": f"상품명: {product.get('product_name', '')}, 대출기간: {product.get('loan_period', '')}, 대출한도: {product.get('loan_limit', '')}"
+            }
+            sources.append(source)
+        
+        # Add relevant vector chunks as sources
+        relevant_chunks = result.get("relevant_chunks", [])
+        for i, chunk in enumerate(relevant_chunks):
+            source = {
+                "index": len(sources) + i + 1,
+                "source_type": "vector",
+                "bank_name": chunk.get("bank_name", ""),
+                "product_name": chunk.get("product_name", ""),
+                "document_name": chunk.get("document_name", ""),
+                "clause": chunk.get("clause", ""),
+                "clause_name": chunk.get("clause_name", ""),
+                "relevance_score": chunk.get("eval_result", {}).get("relevance_score", 0.0),
+                "product_category": "",  # Vector 결과에는 product_category 없음
+                "loan_target": "",  # Vector 결과에는 loan_target 없음
+                "loan_period": "",  # Vector 결과에는 loan_period 없음
+                "loan_limit": "",  # Vector 결과에는 loan_limit 없음
+                "content_preview": chunk.get("content", "")[:200] + "..." if len(chunk.get("content", "")) > 200 else chunk.get("content", "")
             }
             sources.append(source)
         

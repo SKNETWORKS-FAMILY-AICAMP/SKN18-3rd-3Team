@@ -6,7 +6,7 @@ pydantic-settings==2.1.0
 # Database
 psycopg[binary,pool]>=3.2.0
 pgvector==0.2.4
-psycopg2-binary====2.9.11
+psycopg2-binary==2.9.11
 
 # LangChain
 langchain==0.1.0
@@ -15,7 +15,7 @@ langchain-community==0.0.10
 langgraph==0.0.20
 
 #LangSmith
-langsmith
+langsmith==0.0.87
 
 # OpenAI
 openai==1.6.1
