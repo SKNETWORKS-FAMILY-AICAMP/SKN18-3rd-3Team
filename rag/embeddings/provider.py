@@ -10,12 +10,15 @@ class EmbeddingProvider(ABC):
     
     This interface allows for easy swapping of embedding models
     (e.g., OpenAI, HuggingFace, Cohere, etc.)
+    
+    Note: This is a custom interface. For LangChain compatibility,
+    implementations should also inherit from langchain_core.embeddings.Embeddings
     """
     
     @abstractmethod
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """
-        Embed a list of texts into vectors.
+        Embed a list of documents into vectors (LangChain standard).
         
         Args:
             texts: List of text strings to embed
@@ -24,6 +27,18 @@ class EmbeddingProvider(ABC):
             List of embedding vectors
         """
         pass
+    
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        """
+        Embed a list of texts (backward compatibility).
+        
+        Args:
+            texts: List of text strings to embed
+        
+        Returns:
+            List of embedding vectors
+        """
+        return self.embed_documents(texts)
     
     @abstractmethod
     def embed_query(self, text: str) -> List[float]:
