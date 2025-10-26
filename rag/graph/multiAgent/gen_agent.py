@@ -87,6 +87,18 @@ def build_generation_prompt(
             if result.get('loan_limit'):
                 lines.append(f"대출한도: {result.get('loan_limit')}")
             
+            # 금리 정보 추가
+            if result.get('interest_rates'):
+                rates = result['interest_rates']
+                lines.append(f"\n금리 정보 ({len(rates)}개 조건):")
+                for rate_idx, rate in enumerate(rates[:10], 1):  # 최대 10개만 표시
+                    rate_type = rate.get('rate_type', '기본')
+                    condition = rate.get('rate_condition', '-')
+                    interest = rate.get('interest_rate', '-')
+                    lines.append(f"  {rate_idx}. {rate_type} | {condition} | {interest}")
+                if len(rates) > 10:
+                    lines.append(f"  ... 외 {len(rates) - 10}개 조건")
+            
             if result.get('selection_reason'):
                 lines.append(f"\n선정 이유:\n{result.get('selection_reason')}")
             
@@ -213,15 +225,20 @@ class GenerationAgent:
                 {"role": "user", "content": user_prompt}
             ]
             
+            logger.debug(f"Calling LLM for answer generation (prompt length: {len(user_prompt)} chars)")
             response = self.llm.invoke(messages)
             answer = response.content if hasattr(response, "content") else str(response)
+            
+            # 빈 답변 체크
+            if not isinstance(answer, str) or not answer.strip():
+                raise ValueError("Empty answer from generation model")
             
             logger.info(f"Generated answer: {len(answer)} characters")
             return answer
             
         except Exception as e:
-            logger.error(f"Answer generation failed: {e}")
-            return f"답변 생성 중 오류가 발생했습니다: {str(e)}"
+            logger.exception(f"Answer generation failed: {e}")
+            return f"죄송합니다. 답변 생성 중 오류가 발생했습니다: {str(e)}"
     
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
@@ -241,49 +258,60 @@ class GenerationAgent:
         Dict[str, Any]
             answer가 추가된 상태
         """
-        question = state.get("question", "")
-        sql_results = state.get("sql_results", [])
-        sql_contents = state.get("sql_contents", [])
-        relevant_chunks = state.get("relevant_chunks", [])
-        
-        logger.info(f"=== Generation Agent ===")
-        logger.info(f"SQL results: {len(sql_results)} products")
-        logger.info(f"Relevant chunks: {len(relevant_chunks)} chunks")
-        
-        # 청크 소스 분석
-        vector_chunks = [c for c in relevant_chunks if c.get('source') != 'web_search']
-        web_chunks = [c for c in relevant_chunks if c.get('source') == 'web_search']
-        logger.info(f"  - Vector DB: {len(vector_chunks)} chunks")
-        logger.info(f"  - Web Search: {len(web_chunks)} chunks")
-        
-        # SQL 결과 로깅 (상세)
-        if sql_results:
-            logger.info("SQL Results:")
-            for idx, result in enumerate(sql_results[:3], 1):  # 처음 3개만
-                logger.info(f"  [{idx}] {result.get('bank_name', '')} - {result.get('product_name', '')}")
-        
-        # 답변 생성
-        answer = self.generate_answer(question, sql_results, relevant_chunks)
-        
-        # 상태 업데이트
-        state["answer"] = answer
-        
-        # 디버그 정보
-        debug = state.get("debug", {})
-        debug["generation"] = {
-            "sql_results_count": len(sql_results),
-            "sql_contents_count": len(sql_contents),
-            "relevant_chunks_count": len(relevant_chunks),
-            "vector_chunks_count": len(vector_chunks),
-            "web_chunks_count": len(web_chunks),
-            "answer_length": len(answer),
-            "has_sql_data": len(sql_results) > 0,
-            "has_vector_data": len(vector_chunks) > 0,
-            "has_web_data": len(web_chunks) > 0
-        }
-        state["debug"] = debug
-        
-        logger.info(f"Answer generated: {len(answer)} characters")
+        try:
+            question = state.get("question", "")
+            sql_results = state.get("sql_results", [])
+            sql_contents = state.get("sql_contents", [])
+            relevant_chunks = state.get("relevant_chunks", [])
+            
+            logger.info(f"=== Generation Agent ===")
+            logger.info(f"SQL results: {len(sql_results)} products")
+            logger.info(f"Relevant chunks: {len(relevant_chunks)} chunks")
+            
+            # 청크 소스 분석
+            vector_chunks = [c for c in relevant_chunks if c.get('source') != 'web_search']
+            web_chunks = [c for c in relevant_chunks if c.get('source') == 'web_search']
+            logger.info(f"  - Vector DB: {len(vector_chunks)} chunks")
+            logger.info(f"  - Web Search: {len(web_chunks)} chunks")
+            
+            # SQL 결과 로깅 (상세)
+            if sql_results:
+                logger.info("SQL Results:")
+                for idx, result in enumerate(sql_results[:3], 1):  # 처음 3개만
+                    logger.info(f"  [{idx}] {result.get('bank_name', '')} - {result.get('product_name', '')}")
+            
+            # 답변 생성
+            answer = self.generate_answer(question, sql_results, relevant_chunks)
+            
+            # 답변 검증
+            if not answer or not isinstance(answer, str):
+                logger.error(f"Invalid answer generated: {type(answer)}")
+                answer = "죄송합니다. 답변 생성에 실패했습니다."
+            
+            # 상태 업데이트
+            state["answer"] = answer
+            
+            # 디버그 정보
+            debug = state.get("debug", {})
+            debug["generation"] = {
+                "sql_results_count": len(sql_results),
+                "sql_contents_count": len(sql_contents),
+                "relevant_chunks_count": len(relevant_chunks),
+                "vector_chunks_count": len(vector_chunks),
+                "web_chunks_count": len(web_chunks),
+                "answer_length": len(answer),
+                "has_sql_data": len(sql_results) > 0,
+                "has_vector_data": len(vector_chunks) > 0,
+                "has_web_data": len(web_chunks) > 0
+            }
+            state["debug"] = debug
+            
+            logger.info(f"Answer generated: {len(answer)} characters")
+            
+        except Exception as e:
+            logger.exception(f"GenerationAgent.run failed: {e}")
+            state["answer"] = f"죄송합니다. 답변 생성 중 오류가 발생했습니다: {str(e)}"
+            state["error"] = str(e)
         
         return state
 

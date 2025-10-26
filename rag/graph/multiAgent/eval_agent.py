@@ -194,7 +194,7 @@ def build_eval_prompt(question: str, chunks: List[Dict[str, Any]]) -> str:
 ###################################################
 
 class EvaluationAgent:
-    """청크 관련성 평가 에이전트 (gpt-4o, temperature=0.0)"""
+    """청크 관련성 평가 에이전트 (gpt-5-mini, temperature=0.0)"""
     
     def __init__(
         self,
@@ -207,7 +207,7 @@ class EvaluationAgent:
             관련성 임계값 (0-100, 기본값: 35.0)
         """
         # 항상 평가용 LLM 자동 생성
-        logger.info("Creating eval LLM (gpt-4o, temperature=0.0)")
+        logger.info("Creating eval LLM (gpt-5-mini, temperature=0.0)")
         self.llm = get_eval_llm_model()
         
         self.relevance_threshold = relevance_threshold
@@ -242,7 +242,7 @@ class EvaluationAgent:
             logger.error("No LLM available for evaluation")
             return chunks
         
-        logger.info(f"Evaluating {len(chunks)} chunks with eval LLM (gpt-4o, temperature=0.0)...")
+        logger.info(f"Evaluating {len(chunks)} chunks with eval LLM (gpt-5-mini, temperature=0.0)...")
         
         try:
             # 프롬프트 생성
@@ -316,8 +316,8 @@ class EvaluationAgent:
                 relevance_score = float(eval_result.get("relevance_score", 0.0))
                 reasoning = eval_result.get("reasoning", "")
                 
-                # 임계값 체크
-                if is_relevant and relevance_score >= self.relevance_threshold:
+                # 임계값 체크 (is_relevant 무시, score만 체크)
+                if relevance_score >= self.relevance_threshold:
                     chunk["eval_result"] = {
                         "is_relevant": True,
                         "relevance_score": relevance_score / 100.0,  # 0-1 스케일로 변환

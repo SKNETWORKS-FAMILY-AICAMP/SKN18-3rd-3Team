@@ -2,18 +2,18 @@
 
 from typing import Dict, Any
 from rag.core.logger import get_logger
-from rag.retriever import BankRetriever
+from rag.vectorstore.pgvector_store import PgVectorStore
 
 
 logger = get_logger(__name__)
 
 
-def create_vector_search_node(retriever: BankRetriever):
+def create_vector_search_node(vectorstore: PgVectorStore):
     """
     벡터 검색 노드 생성 함수
     
     Args:
-        retriever: BankRetriever instance
+        vectorstore: PgVectorStore instance
     
     Returns:
         vector_search function
@@ -31,8 +31,21 @@ def create_vector_search_node(retriever: BankRetriever):
         Returns:
             Updated state with retrieved documents
         """
-        query = state["query"]
+        logger.info("=== VECTOR_SEARCH FUNCTION CALLED ===")
+        
+        query = state.get("query") or state.get("question") or ""
         top_k = state.get("top_k", 8)
+        
+        if not query:
+            logger.error("No query provided in state!")
+            return {
+                **state,
+                "documents": [],
+                "used_fallback_search": False,
+                "error": "No query provided"
+            }
+        
+        logger.info(f"Vector search input: query='{query[:50]}...', top_k={top_k}")
         
         # SQL 결과 확인
         sql_results = state.get("sql_results", [])
@@ -41,6 +54,8 @@ def create_vector_search_node(retriever: BankRetriever):
         # 메타데이터 필터 설정
         bank_name = state.get("bank_name")
         product_type = state.get("product_type")
+        
+        logger.info(f"Initial filters: bank_name='{bank_name}', product_type='{product_type}'")
         
         # SQL 결과가 없는 경우 Classification 결과 활용
         if not has_sql_results:
@@ -78,12 +93,43 @@ def create_vector_search_node(retriever: BankRetriever):
         logger.info(f"Searching with top_k={top_k}, bank={bank_name}, product={product_type}")
         
         try:
-            documents = retriever.retrieve(
+            # 필터 구성
+            filters = {}
+            if bank_name:
+                filters["bank_name"] = bank_name
+            if product_type:
+                filters["product_type"] = product_type
+            
+            logger.info(f"Vector search filters: {filters}")
+            logger.info(f"Calling vectorstore.similarity_search(query='{query[:50]}...', k={top_k}, filter={filters})")
+            
+            # 벡터 검색 실행
+            documents = vectorstore.similarity_search(
                 query=query,
-                top_k=top_k,
-                bank_name=bank_name,
-                product_type=product_type
+                k=top_k,
+                filter=filters if filters else None
             )
+            
+            logger.info(f"Initial search returned {len(documents)} documents")
+            
+            if len(documents) > 0:
+                logger.info(f"Sample result: bank={documents[0].metadata.get('은행명')}, product={documents[0].metadata.get('상품이름')}, type={documents[0].metadata.get('상품종류')}")
+            else:
+                logger.warning(f"No documents found with filters: {filters}")
+            
+            # 예금/적금 관련 검색인데 결과가 없으면, 다른 타입으로도 검색
+            if len(documents) == 0 and product_type in ["예금", "예적금"]:
+                logger.info(f"No results for {product_type}, trying alternative product type...")
+                alternative_type = "예적금" if product_type == "예금" else "예금"
+                alt_filters = filters.copy()
+                alt_filters["product_type"] = alternative_type
+                
+                documents = vectorstore.similarity_search(
+                    query=query,
+                    k=top_k,
+                    filter=alt_filters if alt_filters else None
+                )
+                logger.info(f"Found {len(documents)} documents with alternative type: {alternative_type}")
             
             logger.info(f"Found {len(documents)} documents")
             

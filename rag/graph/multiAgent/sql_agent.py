@@ -204,7 +204,7 @@ GENERIC_PRODUCT_TOKENS = {"예금", "적금", "대출", "상품", "금리"}
 # ---------------------------------------------------------------------------
 
 class SQLRetrievalAgent:
-    """rdb.loan_info 테이블에서 질의하는 에이전트."""
+    """RDB에서 은행 상품 정보를 조회하는 에이전트 (rdb.loan_info 테이블 사용)."""
 
     def __init__(
         self,
@@ -215,12 +215,33 @@ class SQLRetrievalAgent:
         config = get_config()
         self.conn_str = conn_str or config.DB_URL
         self.default_limit = default_limit
+    
+
+    
+    @staticmethod
+    def _normalize_bank_name(bank_name: Optional[str]) -> Optional[str]:
+        """은행명 정규화 (별칭 처리)"""
+        if not bank_name:
+            return None
+        
+        bank_name_normalized = bank_name.strip()
+        
+        # 은행명 별칭 매핑
+        bank_aliases = {
+            "국민은행": "국민은행",
+            "KB국민은행": "국민은행",
+            "KB": "국민은행",
+            "우리은행": "우리은행",
+            "우리": "우리은행",
+        }
+        
+        return bank_aliases.get(bank_name_normalized, bank_name_normalized)
 
     # -- 내부 유틸 ---------------------------------------------------------
 
     def _connect(self):
         """psycopg3 커넥션을 생성한다. with 문에서 호출된다."""
-        return connect(self.conn_str)
+        return connect(self.conn_str, autocommit=True)
 
     @staticmethod
     def _build_like_pattern(value: Optional[str]) -> Optional[str]:
@@ -365,6 +386,10 @@ class SQLRetrievalAgent:
         merged_tokens.extend(base_product_tokens)
         product_tokens = _filter_product_tokens(merged_tokens)
 
+        from rag.core.logger import get_logger
+        logger = get_logger(__name__)
+        logger.info(f"Querying rdb.loan_info (product_type={product_type})")
+
         sql_parts = [
             """
             SELECT
@@ -383,9 +408,14 @@ class SQLRetrievalAgent:
 
         params: List[Any] = []
 
-        if bank_name:
-            sql_parts.append("AND bank_name = %s")
-            params.append(bank_name)
+        # 은행명 정규화 및 별칭 매핑
+        normalized_bank_name = self._normalize_bank_name(bank_name) if bank_name else None
+        
+        if normalized_bank_name:
+            # 은행명은 ILIKE로 유연하게 매칭 (KB국민은행 vs 국민은행)
+            sql_parts.append("AND bank_name ILIKE %s")
+            params.append(f"%{normalized_bank_name}%")
+            logger.info(f"Bank filter: {normalized_bank_name}")
 
         product_like = self._build_like_pattern(product_name)
         product_like_compact = None
@@ -474,6 +504,13 @@ class SQLRetrievalAgent:
         params.append(limit or self.default_limit)
 
         query_str = "\n".join(sql_parts)
+        
+        # SQL 쿼리 로깅 추가
+        from rag.core.logger import get_logger
+        logger = get_logger(__name__)
+        logger.info(f"SQL Query: {query_str}")
+        logger.info(f"SQL Params: {params}")
+        
         debug_info = {
             "sql": query_str,
             "params": [str(p) for p in params],
@@ -501,6 +538,58 @@ class SQLRetrievalAgent:
             return records, debug_info
         return records
 
+    def _query_bank_interest_rate(
+        self,
+        bank_name: Optional[str],
+        product_name: Optional[str],
+        product_type: Optional[str],
+        limit: int = 5
+    ) -> List[Dict[str, Any]]:
+        """bank_interest_rate 테이블에서 예금/적금 조회"""
+        from rag.core.logger import get_logger
+        logger = get_logger(__name__)
+        
+        sql_parts = [
+            """
+            SELECT DISTINCT
+                bank_name,
+                product_name,
+                product_category
+            FROM rdb.bank_interest_rate
+            WHERE 1=1
+            """
+        ]
+        params: List[Any] = []
+        
+        # 은행명 필터
+        if bank_name:
+            normalized_bank = self._normalize_bank_name(bank_name)
+            sql_parts.append("AND bank_name ILIKE %s")
+            params.append(f"%{normalized_bank}%")
+        
+        # 상품 종류 필터
+        if product_type:
+            sql_parts.append("AND product_category ILIKE %s")
+            params.append(f"%{product_type}%")
+        
+        # 상품명 필터
+        if product_name:
+            sql_parts.append("AND product_name ILIKE %s")
+            params.append(f"%{product_name}%")
+        
+        sql_parts.append("ORDER BY bank_name, product_name")
+        sql_parts.append("LIMIT %s")
+        params.append(limit)
+        
+        query_str = "\n".join(sql_parts)
+        logger.info(f"Querying bank_interest_rate: {query_str}")
+        logger.info(f"Params: {params}")
+        
+        with self._connect() as conn:
+            with conn.cursor(row_factory=dict_row) as cur:
+                cur.execute(query_str, params)
+                return cur.fetchall()
+    
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
         LangGraph node에서 호출하기 위한 헬퍼.
@@ -511,6 +600,76 @@ class SQLRetrievalAgent:
         product_name = _normalize(state.get("product_name"))
         product_type = _normalize(state.get("product_type"))
         loan_target = _normalize(state.get("loan_target"))
+        
+        from rag.core.logger import get_logger
+        logger = get_logger(__name__)
+        
+        # 예금/적금 질의는 bank_interest_rate 테이블 조회
+        if product_type and (product_type in ["예금", "적금"] or "예금" in product_type or "적금" in product_type):
+            logger.info(f"Detected deposit/savings query (product_type={product_type}). Querying bank_interest_rate table.")
+            
+            interest_products = self._query_bank_interest_rate(
+                bank_name=bank_name,
+                product_name=product_name,
+                product_type=product_type,
+                limit=5
+            )
+            
+            if interest_products:
+                sql_results: List[Dict[str, Any]] = []
+                sql_contents: List[str] = []
+                
+                for prod in interest_products:
+                    # 해당 상품의 금리 정보 조회
+                    rates = self._fetch_interest_rates(
+                        bank_name=prod["bank_name"],
+                        product_name=prod["product_name"],
+                        exact_match=True,
+                        limit=20
+                    )
+                    
+                    reason = (
+                        f"- '{prod['product_name']}'은(는) {prod['product_category']} 상품입니다.\n"
+                        f"- 질문에서 지정된 은행과 상품 종류 조건을 충족했습니다."
+                    )
+                    
+                    sql_results.append({
+                        "bank_name": prod["bank_name"],
+                        "product_name": prod["product_name"],
+                        "product_category": prod["product_category"],
+                        "product_detail_category": None,
+                        "loan_target": None,
+                        "loan_conditions": None,
+                        "loan_period": None,
+                        "loan_limit": None,
+                        "interest_rates": rates,
+                        "selection_reason": reason,
+                        "from_interest_rate_table": True
+                    })
+                    
+                    summary_lines = _fetch_rate_summary(rates)
+                    content = f"은행: {prod['bank_name']}\n상품명: {prod['product_name']}\n종류: {prod['product_category']}"
+                    if summary_lines:
+                        content += "\n" + "\n".join(summary_lines)
+                    sql_contents.append(content + "\n" + reason)
+                
+                state["sql_results"] = sql_results
+                state["sql_contents"] = sql_contents
+                debug = state.get("debug") or {}
+                debug["sql"] = {
+                    "table": "bank_interest_rate",
+                    "product_type": product_type,
+                    "results_count": len(sql_results)
+                }
+                state["debug"] = debug
+                
+                logger.info(f"Found {len(sql_results)} deposit/savings products from bank_interest_rate")
+                return state
+            else:
+                logger.warning(f"No deposit/savings products found in bank_interest_rate")
+                state["sql_results"] = []
+                state["sql_contents"] = []
+                return state
         loan_type = _normalize(state.get("loan_type"))
         raw_keywords = state.get("raw_keywords") or []
         raw_keyword_tokens: List[str] = []
