@@ -24,6 +24,7 @@ def load_bank_data(csv_path: str) -> List[Document]:
         - chunk_id: Chunk identifier
         - doc_id: Document identifier
         - 은행명: Bank name (우리은행 or 국민은행)
+        - 문서명: Document name
         - 상품종류: Product type (대출 or 예적금)
         - 상품이름: Product name
         - 조항: Clause number
@@ -65,6 +66,7 @@ def load_bank_data(csv_path: str) -> List[Document]:
                 "chunk_id": str(row.get("chunk_id", "")) if pd.notna(row.get("chunk_id")) else "",
                 "doc_id": str(row.get("doc_id", "")) if pd.notna(row.get("doc_id")) else "",
                 "은행명": str(row.get("은행명", "")) if pd.notna(row.get("은행명")) else "",
+                "문서명": str(row.get("문서명", "")) if pd.notna(row.get("문서명")) else "",
                 "상품종류": str(row.get("상품종류", "")) if pd.notna(row.get("상품종류")) else "",
                 "상품이름": str(row.get("상품이름", "")) if pd.notna(row.get("상품이름")) else "",
                 "조항": str(row.get("조항", "")) if pd.notna(row.get("조항")) else "",
@@ -144,6 +146,7 @@ def load_bank_data_filtered(
                 "chunk_id": str(row.get("chunk_id", "")) if pd.notna(row.get("chunk_id")) else "",
                 "doc_id": str(row.get("doc_id", "")) if pd.notna(row.get("doc_id")) else "",
                 "은행명": str(row.get("은행명", "")) if pd.notna(row.get("은행명")) else "",
+                "문서명": str(row.get("문서명", "")) if pd.notna(row.get("문서명")) else "",
                 "상품종류": str(row.get("상품종류", "")) if pd.notna(row.get("상품종류")) else "",
                 "상품이름": str(row.get("상품이름", "")) if pd.notna(row.get("상품이름")) else "",
                 "조항": str(row.get("조항", "")) if pd.notna(row.get("조항")) else "",

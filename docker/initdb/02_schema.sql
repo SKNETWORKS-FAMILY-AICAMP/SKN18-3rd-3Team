@@ -1,11 +1,22 @@
+\connect rag;
+
+-- Enable pgvector for embedding storage
+CREATE EXTENSION IF NOT EXISTS vector;
+
+-- Dedicated schema for RAG assets
+CREATE SCHEMA IF NOT EXISTS rag;
+
+COMMENT ON SCHEMA rag IS 'Vector search artifacts for bank clause RAG pipeline';
+
 -- Create documents table
 CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
     doc_id VARCHAR(255) UNIQUE NOT NULL,
     chunk_id VARCHAR(255) NOT NULL,
-    embedding vector(3072),  -- text-embedding-3-large dimension
+    embedding vector(1536),
     content TEXT NOT NULL,
     bank_name VARCHAR(100) NOT NULL,
+    document_name TEXT NOT NULL,
     product_type VARCHAR(50) NOT NULL,
     product_name VARCHAR(255),
     clause VARCHAR(255),

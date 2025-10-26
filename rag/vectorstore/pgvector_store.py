@@ -71,30 +71,30 @@ class PgVectorStore:
             # Insert batch
             upsert_sql = get_upsert_query()
             
-            with self.connection.get_connection() as conn:
-                with conn.cursor() as cur:
-                    for doc, embedding in zip(batch, embeddings):
-                        metadata = doc.metadata
-                        doc_id = f"{metadata.get('doc_id', '')}_{metadata.get('chunk_id', '')}"
-                        
-                        try:
+            for doc, embedding in zip(batch, embeddings):
+                metadata = doc.metadata
+                doc_id = f"{metadata.get('doc_id', '')}_{metadata.get('chunk_id', '')}"
+                
+                try:
+                    with self.connection.get_connection() as conn:
+                        with conn.cursor() as cur:
                             cur.execute(upsert_sql, (
                                 doc_id,
                                 metadata.get("chunk_id", ""),
                                 embedding,
                                 doc.page_content,
                                 metadata.get("은행명", ""),
+                                metadata.get("문서명", ""),
                                 metadata.get("상품종류", ""),
                                 metadata.get("상품이름", ""),
                                 metadata.get("조항", ""),
                                 metadata.get("조항이름", "")
                             ))
+                            conn.commit()
                             doc_ids.append(doc_id)
-                        except Exception as e:
-                            logger.error(f"Failed to insert document {doc_id}: {e}")
-                            continue
-                    
-                    conn.commit()
+                except Exception as e:
+                    logger.error(f"Failed to insert document {doc_id}: {e}")
+                    continue
             
             logger.info(f"Processed batch {i//batch_size + 1}/{(total + batch_size - 1)//batch_size}")
         
@@ -155,13 +155,14 @@ class PgVectorStore:
                                 "doc_id": row[0],
                                 "chunk_id": row[1],
                                 "은행명": row[3],
-                                "상품종류": row[4],
-                                "상품이름": row[5],
-                                "조항": row[6],
-                                "조항이름": row[7]
+                                "문서명": row[4],
+                                "상품종류": row[5],
+                                "상품이름": row[6],
+                                "조항": row[7],
+                                "조항이름": row[8]
                             }
                         )
-                        score = float(row[8])
+                        score = float(row[9])
                         documents.append((doc, score))
                     
                     logger.info(f"Found {len(documents)} similar documents")
