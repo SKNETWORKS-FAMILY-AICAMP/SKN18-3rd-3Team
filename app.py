@@ -92,7 +92,7 @@ def initialize_system():
             llm=llm,
             vectorstore=vectorstore,
             top_k=8,
-            relevance_threshold=35.0,
+            relevance_threshold=0.0,  # 평가 비활성화 (모든 청크 사용)
             enable_langsmith=False
         )
         
@@ -117,8 +117,8 @@ def main():
         st.subheader("시스템 정보")
         st.info("""
         **Multi-Agent RAG 시스템**
-        - 생성 LLM: gpt-4o-mini
-        - 평가 LLM: gpt-4o
+        - 생성 LLM: gpt-5-nano (분류, 답변생성, 쿼리재작성)
+        - 평가 LLM: gpt-5-mini (청크 관련성 평가)
         - 검색: SQL + VectorDB + Web
         """)
         

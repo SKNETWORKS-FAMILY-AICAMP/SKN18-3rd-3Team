@@ -45,6 +45,18 @@ class State(TypedDict, total=False):
     # 연관 없는 질문 재작성
     followup_question: str
     generation_strategy: str
+    rewritten_query: str                     # 재작성된 쿼리
+    
+    # 재시도 관련
+    should_retry: bool                       # 재시도 필요 여부
+    retry_reason: str                        # 재시도 이유
+    retry_count: int                         # 재시도 횟수
+    top_k: int                               # Vector 검색 top_k
+    web_chunks: List[Dict[str, Any]]         # 웹 검색 청크
+    web_used: bool                           # 웹 검색 사용 여부
+    
+    # 에러 처리
+    error: str                               # 에러 메시지
 
     # 최종 답변
     final_answer: str

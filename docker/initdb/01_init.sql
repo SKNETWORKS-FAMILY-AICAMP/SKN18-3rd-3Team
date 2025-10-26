@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS documents (
     id SERIAL PRIMARY KEY,
     doc_id VARCHAR(255) UNIQUE NOT NULL,
     chunk_id VARCHAR(255) NOT NULL,
-    embedding vector(1536),
+    embedding vector(3072),  -- text-embedding-3-large (3072 dimensions)
     content TEXT NOT NULL,
     bank_name VARCHAR(100) NOT NULL,
     document_name TEXT NOT NULL,

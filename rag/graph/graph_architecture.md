@@ -28,10 +28,10 @@ Start → Classify → SQL → Vector → Eval → Generate → Format → End
 
 | Agent | 파일 | 역할 | LLM |
 |-------|------|------|-----|
-| **Classify** | `classify_agent.py` | 질의 분류, 키워드 추출 | gpt-4o-mini |
+| **Classify** | `classify_agent.py` | 질의 분류, 키워드 추출 | gpt-5-nano |
 | **SQL** | `sql_agent.py` | RDB 검색 (상품 정보) | - |
-| **Eval** | `eval_agent.py` | 청크 관련성 평가 | gpt-4o |
-| **Generate** | `gen_agent.py` | 최종 답변 생성 | gpt-4o-mini |
+| **Eval** | `eval_agent.py` | 청크 관련성 평가 | gpt-5-nano |
+| **Generate** | `gen_agent.py` | 최종 답변 생성 | gpt-5-nano |
 
 ### Nodes (단순 변환)
 
@@ -44,7 +44,7 @@ Start → Classify → SQL → Vector → Eval → Generate → Format → End
 
 ## 핵심 기능
 
-- **Dual LLM**: 생성(gpt-4o-mini) + 평가(gpt-4o)
+- **단일 LLM**: gpt-5-nano (모든 작업)
 - **하이브리드 검색**: SQL + VectorDB + Web
 - **재시도 로직**: 1회 재시도 (질문 재생성 + 웹 검색)
 - **Fail-Fast**: SQL 실패 시 즉시 종료

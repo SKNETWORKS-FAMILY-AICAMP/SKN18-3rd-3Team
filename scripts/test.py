@@ -37,7 +37,7 @@ def test_rag(question: str):
     # LLM 초기화
     print("\n생성용 LLM 초기화 중...")
     llm = get_llm_model()
-    print("✓ 생성용 LLM 초기화 완료 (gpt-4o-mini, temperature=1.0)")
+    print("✓ 생성용 LLM 초기화 완료 (gpt-5-nano, temperature=1.0)")
     
     # VectorStore 초기화
     print("\nVectorStore 초기화 중...")
@@ -62,7 +62,7 @@ def test_rag(question: str):
     
     # RAG 시스템 생성 (build.py 사용)
     print("\nRAG 그래프 생성 중...")
-    print("  - 평가용 LLM은 EvaluationAgent 내부에서 자동 생성됩니다 (gpt-4o, temperature=0.0)")
+    print("  - 평가용 LLM은 EvaluationAgent 내부에서 자동 생성됩니다 (gpt-5-mini, temperature=0.0)")
     print("  - 청크 관련성 임계값: 35.0 (완화됨)")
     print("  - 조건부 라우팅: 비활성화 (순차 실행)")
     print("  - LangSmith 추적: 비활성화")

@@ -33,7 +33,7 @@ def create_eval_node(
     function
         eval_node 함수
     """
-    # EvaluationAgent 초기화 (내부에서 gpt-4o 자동 생성)
+    # EvaluationAgent 초기화 (내부에서 gpt-5-mini 자동 생성)
     eval_agent = EvaluationAgent(relevance_threshold=relevance_threshold)
     
     def eval_node(state: Dict[str, Any]) -> Dict[str, Any]:

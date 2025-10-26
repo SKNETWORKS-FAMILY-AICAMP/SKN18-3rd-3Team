@@ -26,12 +26,12 @@ class Config(BaseSettings):
         description="생성용 LLM Temperature (창의성)"
     )
     EVAL_LLM_MODEL: str = Field(
-        default="gpt-4o",
+        default="gpt-5-mini",
         description="평가용 LLM 모델 (청크 관련성 평가)"
     )
     EVAL_LLM_TEMPERATURE: float = Field(
-        default=0.0,
-        description="평가용 LLM Temperature (일관성)"
+        default=1.0,
+        description="평가용 LLM Temperature (gpt-5-mini는 1.0만 지원)"
     )
     
     # Legacy LLM Model (호환성 유지)
@@ -41,7 +41,7 @@ class Config(BaseSettings):
     )
     
     OPENAI_TIMEOUT: int = Field(
-        default=30,
+        default=60,
         description="Timeout for OpenAI API calls in seconds"
     )
     
