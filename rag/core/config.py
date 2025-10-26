@@ -12,13 +12,34 @@ class Config(BaseSettings):
     # OpenAI settings
     OPENAI_API_KEY: str = Field(..., description="OpenAI API key")
     EMBED_MODEL: str = Field(
-        default="text-embedding-3-large",
+        default="text-embedding-3-small",
         description="OpenAI embedding model"
     )
+    
+    # LLM Models
+    GEN_LLM_MODEL: str = Field(
+        default="gpt-5-nano",
+        description="생성용 LLM 모델 (답변 생성, 분류 등)"
+    )
+    GEN_LLM_TEMPERATURE: float = Field(
+        default=1.0,
+        description="생성용 LLM Temperature (창의성)"
+    )
+    EVAL_LLM_MODEL: str = Field(
+        default="gpt-4o",
+        description="평가용 LLM 모델 (청크 관련성 평가)"
+    )
+    EVAL_LLM_TEMPERATURE: float = Field(
+        default=0.0,
+        description="평가용 LLM Temperature (일관성)"
+    )
+    
+    # Legacy LLM Model (호환성 유지)
     LLM_MODEL: str = Field(
         default="gpt-4",
-        description="OpenAI LLM model for generation"
+        description="OpenAI LLM model for generation (legacy)"
     )
+    
     OPENAI_TIMEOUT: int = Field(
         default=30,
         description="Timeout for OpenAI API calls in seconds"

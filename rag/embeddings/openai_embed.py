@@ -25,7 +25,7 @@ class OpenAIEmbeddings(EmbeddingProvider):
         "text-embedding-ada-002": 1536
     }
     
-    def __init__(self, model: str, api_key: str, timeout: int = 30):
+    def __init__(self, model: str, api_key: str, timeout: int = 120):  # 타임아웃 증가 (30 → 120초)
         """
         Initialize OpenAI embeddings.
         
@@ -46,8 +46,8 @@ class OpenAIEmbeddings(EmbeddingProvider):
         return self._dimension
     
     @retry(
-        stop=stop_after_attempt(3),
-        wait=wait_exponential(multiplier=1, min=2, max=10)
+        stop=stop_after_attempt(5),  # 재시도 횟수 증가 (3 → 5)
+        wait=wait_exponential(multiplier=2, min=4, max=60)  # 대기 시간 증가
     )
     def embed_texts(self, texts: List[str]) -> List[List[float]]:
         """

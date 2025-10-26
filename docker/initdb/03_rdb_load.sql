@@ -15,7 +15,7 @@ CREATE TABLE IF NOT EXISTS rdb.loan_info (
     loan_conditions TEXT,
     loan_period TEXT,
     loan_limit TEXT,
-    source_file TEXT NOT NULL DEFAULT 'final_update_v4.csv',
+    source_file TEXT NOT NULL DEFAULT 'loan_products_RDB.csv',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -42,7 +42,7 @@ BEGIN
                 loan_period,
                 loan_limit
             )
-            FROM '/docker-entrypoint-initdb.d/final_update_v4.csv'
+            FROM '/docker-entrypoint-initdb.d/loan_products_RDB.csv'
             WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
         $copy$;
     EXCEPTION
@@ -65,7 +65,7 @@ CREATE TABLE rdb.bank_interest_rate (
     rate_type TEXT,
     rate_condition TEXT,
     interest_rate TEXT,
-    source_file TEXT NOT NULL DEFAULT 'RDB2_cleaned.csv',
+    source_file TEXT NOT NULL DEFAULT 'bank_rate.csv',
     created_at TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -89,7 +89,7 @@ BEGIN
                 rate_condition,
                 interest_rate
             )
-            FROM '/docker-entrypoint-initdb.d/RDB2_cleaned.csv'
+            FROM '/docker-entrypoint-initdb.d/bank_rate.csv'
             WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');
         $copy$;
     EXCEPTION
