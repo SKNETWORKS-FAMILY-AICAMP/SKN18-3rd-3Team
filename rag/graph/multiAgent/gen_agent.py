@@ -13,44 +13,66 @@ logger = get_logger(__name__)
 
 GENERATION_SYSTEM_PROMPT = """당신은 한국 은행 상품 전문 상담사입니다.
 
-사용자의 질문에 대해 다음 세 가지 정보원을 활용하여 정확하고 친절한 답변을 제공하세요:
+**🚨 최우선 규칙: 단순한 후속 질문 처리**
+- 질문이 "응", "알려줘", "더 알려줘" 등이면 **절대** 상세 정보를 제공하지 말고 후속 질문만 제기
+- "추천된 상품들의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요? 아래 목록에서 확인해 주세요:"라고 답변
+- 상품 목록을 불릿 포인트로 나열 (은행명: 상품명 형식)
+- 구체적인 상품명을 요청하는 예시 제공
+- **이 규칙은 다른 모든 규칙보다 우선합니다!**
 
-**정보원 1: SQL 검색 결과 (RDB에서 조회)**
-- 상품의 기본 메타데이터 (은행명, 상품명, 대출조건, 기간, 한도 등)
-- 구조화된 상품 정보
-- 대출 대상, 카테고리 등 필터링된 결과
+**핵심 원칙: 간결하고 명확하고 이해하기 쉽게!, 질문 유형에 따라 완전히 다른방식으로 답변!!**
+**사용자는 은행상품 및 관련 분야에 대한 전문가가 아니므로 쉽고 친절하게 설명해야함**
 
-**정보원 2: Vector DB 조회 결과 (내부 약관 데이터)**
-- 상품 약관의 구체적인 조항 내용
-- 금리, 수수료, 우대조건 등 상세 정보
-- LLM이 관련성을 평가하여 필터링한 고품질 정보
-- **최우선 신뢰 정보**: 공식 은행 약관 데이터
+**🔍 상품 추천 질문인 경우:**
+- 답변: **1문단만** (2-3문장)
+- 상품명과 핵심 정보만 나열
+- 상품약관 관련된 질문을 제안하는 것으로 마무리
+- "해당 상품들과 관련된 상품약관과 주의사항에 대해서 말씀해 드릴까요?"
+- 절대 상세 정보나 조항 내용은 제공하지 말 것
 
-**정보원 3: 웹 검색 결과 (보조 정보)**
-- Vector DB에 정보가 충분하지 않을 때 추가로 수집된 정보
-- 최신 정보, 참고 자료
-- **주의**: Vector DB 정보와 충돌 시 Vector DB 우선
+**🚨 단순한 후속 질문 처리 (최우선!):**
+- 질문이 "응", "알려줘", "더 알려줘" 등이면 **절대** 상세 정보를 제공하지 말고 후속 질문만 제기
+- "추천된 상품들의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요? 아래 목록에서 확인해 주세요:"라고만 답변
+- 상품 목록을 불릿 포인트로 나열 (은행명: 상품명 형식)
+- 구체적인 상품명을 요청하는 예시 제공
+- **중요: 이 규칙은 다른 모든 규칙보다 우선합니다!**
 
-**중요한 우선순위 규칙:**
-1. Vector DB 정보와 웹 검색 정보가 충돌하면 **항상 Vector DB 정보를 우선**하세요
-2. Vector DB는 공식 은행 약관이므로 가장 신뢰할 수 있습니다
-3. 웹 검색 결과는 보조 정보로만 활용하세요
+**📋 조항 질문인 경우:**
+- 답변: **2문단** (4-5문장)
+- 질문 요약
+- **구체적인 수치, 비율, 기간, 조건**을 명시한 주요약관 내용 및 주의사항 설명
+- **정확한 조항 번호와 내용**으로 근거 제시 (예: "제3조 2항에 따르면...")
+- **실용적인 정보** 포함 (필요 서류, 신청 절차, 제한 사항 등)
+- 전문용어는 풀어서 설명
+- 마지막 답변요약
+- "다른 궁금한 점이 있으시면 말씀해 주세요"로 마무리
 
-답변 작성 시 주의사항:
+**💬 후속 질문 처리 (중요!):**
+- 질문이 "응", "알려줘", "더 알려줘" 등 단순한 후속 질문이면 **무조건** 후속 질문을 제기하세요
+- 질문에 "이전 대화 내용", "약관", "조항", "상품약관", "주의사항"이 포함되어 있으면 반드시 참고하세요
+- **이전에 상품을 추천했고, 현재 질문에서 특정 상품을 지정하지 않은 경우:**
+    - "다섯 상품의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요?"
+    - 상품 목록을 간단히 나열 (은행명 : 상품명 형식)
+    - "예: '국민은행 에이스ACE전문직무보증대출 약관 알려줘'와 같이 상품명을 말씀해 주세요"
+- **특정 상품을 지정한 경우:**
+    - 해당 상품에 대한 상세한 주의사항과 조건을 설명
+    - 구체적인 수치, 비율, 기간, 조건을 명시
+    - 근거는 정확한 조항 번호와 내용으로 제시
+
+**답변작성시 주의사항**
 - 제공된 정보만을 기반으로 답변하세요 (추측 금지)
 - SQL 결과, Vector DB 결과, 웹 검색 결과를 모두 활용하세요
+- Vector DB 정보와 웹 검색 정보가 충돌하면 **항상 Vector DB 정보를 우선**하세요
 - 정보 출처를 명확히 구분하세요 (예: "공식 약관에 따르면...", "참고로...")
 - 정보가 부족하면 "제공된 정보로는 정확한 답변이 어렵습니다"라고 말하세요
 - 은행명, 상품명, 조항 번호 등을 명확히 언급하세요
 - 전문 용어는 쉽게 풀어서 설명하세요
-- 답변은 3-5문단으로 구조화하세요
 
-권장 답변 구조:
-1. 질문 요약 및 검색된 상품 소개
-2. SQL 검색 결과 기반 기본 정보 (대출 조건, 기간, 한도)
-3. Vector DB 약관 조항 기반 상세 내용 (금리, 수수료, 우대조건)
-4. 웹 검색 기반 추가 정보 (있는 경우)
-5. 주의사항 및 마무리
+**절대 금지:**
+- 긴 설명이나 반복
+- 모든 정보를 다 나열
+- 상품 추천에서 조항까지 다 설명
+- "Vector DB에서 찾을 수 없었습니다" 같은 불필요한 설명
 """
 
 
@@ -59,114 +81,93 @@ def build_generation_prompt(
     sql_results: List[Dict[str, Any]],
     relevant_chunks: List[Dict[str, Any]]
 ) -> str:
-    """답변 생성 프롬프트 작성"""
+    """간결한 답변 생성 프롬프트 작성"""
     lines = [
-        f'질문: "{question}"',
+        f'현재 질문: "{question}"',
         "",
-        "=" * 80,
-        "1. SQL 검색 결과 (상품 기본 정보)",
-        "=" * 80,
-        ""
+        "현재 질문 관련 정보:",
+        "",
+        "상품 정보:"
     ]
     
-    if not sql_results:
-        lines.append("검색된 상품이 없습니다.")
+    if sql_results:
+        for result in sql_results:
+            lines.append(f"- {result.get('bank_name', '')} {result.get('product_name', '')} (기간: {result.get('loan_period', 'N/A')}, 한도: {result.get('loan_limit', 'N/A')})")
     else:
-        for idx, result in enumerate(sql_results, 1):
-            lines.append(f"[상품 {idx}]")
-            lines.append(f"은행: {result.get('bank_name', '')}")
-            lines.append(f"상품명: {result.get('product_name', '')}")
-            lines.append(f"종류: {result.get('product_category', '')} > {result.get('product_detail_category', '')}")
-            
-            if result.get('loan_target'):
-                lines.append(f"대출대상: {result.get('loan_target')}")
-            if result.get('loan_conditions'):
-                lines.append(f"대출조건: {result.get('loan_conditions')}")
-            if result.get('loan_period'):
-                lines.append(f"대출기간: {result.get('loan_period')}")
-            if result.get('loan_limit'):
-                lines.append(f"대출한도: {result.get('loan_limit')}")
-            
-            # 금리 정보 추가
-            if result.get('interest_rates'):
-                rates = result['interest_rates']
-                lines.append(f"\n금리 정보 ({len(rates)}개 조건):")
-                for rate_idx, rate in enumerate(rates[:10], 1):  # 최대 10개만 표시
-                    rate_type = rate.get('rate_type', '기본')
-                    condition = rate.get('rate_condition', '-')
-                    interest = rate.get('interest_rate', '-')
-                    lines.append(f"  {rate_idx}. {rate_type} | {condition} | {interest}")
-                if len(rates) > 10:
-                    lines.append(f"  ... 외 {len(rates) - 10}개 조건")
-            
-            if result.get('selection_reason'):
-                lines.append(f"\n선정 이유:\n{result.get('selection_reason')}")
-            
-            lines.append("")
+        lines.append("- 상품 정보 없음")
     
     lines.extend([
         "",
-        "=" * 80,
-        "2. 관련 약관 조항 (상세 내용)",
-        "=" * 80,
-        ""
+        "약관 정보:"
     ])
     
-    if not relevant_chunks:
-        lines.append("관련 약관 조항을 찾지 못했습니다.")
-    else:
-        # Vector DB 청크와 웹 검색 결과 분리
+    if relevant_chunks:
         vector_chunks = [c for c in relevant_chunks if c.get('source') != 'web_search']
-        web_chunks = [c for c in relevant_chunks if c.get('source') == 'web_search']
-        
-        # Vector DB 청크 (우선 표시)
-        if vector_chunks:
-            lines.append("【Vector DB 조회 결과 - 공식 약관】")
-            lines.append("")
-            for idx, chunk in enumerate(vector_chunks, 1):
-                lines.append(f"[조항 {idx}]")
-                lines.append(f"은행: {chunk.get('bank_name', '')}")
-                lines.append(f"문서: {chunk.get('document_name', '')}")
-                lines.append(f"상품: {chunk.get('product_name', '')}")
-                lines.append(f"조항: {chunk.get('clause', '')} - {chunk.get('clause_name', '')}")
-                
-                if chunk.get('eval_result'):
-                    eval_result = chunk['eval_result']
-                    lines.append(f"관련성: {eval_result.get('relevance_score', 0.0):.2f}")
-                    lines.append(f"이유: {eval_result.get('reason', '')}")
-                
-                lines.append(f"\n내용:\n{chunk.get('content', '')}")
-                lines.append("")
-        
-        # 웹 검색 결과 (보조 정보)
-        if web_chunks:
-            lines.append("")
-            lines.append("【웹 검색 결과 - 참고 정보】")
-            lines.append("※ Vector DB 정보와 충돌 시 Vector DB 우선")
-            lines.append("")
-            for idx, chunk in enumerate(web_chunks, 1):
-                lines.append(f"[웹 검색 {idx}]")
-                
-                # 웹 검색 결과는 구조가 다를 수 있음
-                if chunk.get('title'):
-                    lines.append(f"제목: {chunk.get('title', '')}")
-                if chunk.get('url'):
-                    lines.append(f"출처: {chunk.get('url', '')}")
-                
-                if chunk.get('eval_result'):
-                    eval_result = chunk['eval_result']
-                    lines.append(f"관련성: {eval_result.get('relevance_score', 0.0):.2f}")
-                    lines.append(f"이유: {eval_result.get('reason', '')}")
-                
-                lines.append(f"\n내용:\n{chunk.get('content', '')}")
-                lines.append("")
+        for chunk in vector_chunks[:2]:  # 최대 2개만
+            lines.append(f"- {chunk.get('bank_name', '')} {chunk.get('clause', '')} {chunk.get('clause_name', '')}")
+    else:
+        lines.append("- 약관 정보 없음")
     
     lines.extend([
         "",
-        "=" * 80,
-        "",
-        "위 정보를 바탕으로 사용자 질문에 대한 정확하고 친절한 답변을 작성하세요."
+        "위 정보로 간결하게 답변하세요."
     ])
+    
+    # 후속 질문 컨텍스트 추가
+    is_followup_question = (
+        "이전 대화 내용" in question or 
+        "약관" in question or 
+        "조항" in question or
+        "상품약관" in question or
+        "주의사항" in question or
+        question.strip() in ["응", "응해줘", "응알려줘", "더 알려줘", "더 자세히", "자세히 알려줘", "그거", "그것", "그 상품", "그 조항", "그것에 대해", "그거에 대해", "어떻게", "뭐야", "뭔가", "뭐지", "뭐하는", "뭐하는거야", "알려줘", "말해줘", "설명해줘", "상세히", "자세히", "더"]
+    )
+    
+    # 특정 상품이 지정되었는지 확인
+    has_specific_product = any(
+        result.get('product_name', '') and len(result.get('product_name', '')) > 5 
+        for result in sql_results
+    )
+    
+    # 질문에서 특정 상품명이 언급되었는지 확인
+    question_has_specific_product = False
+    if sql_results:
+        for result in sql_results:
+            product_name = result.get('product_name', '')
+            if product_name and len(product_name) > 5 and product_name in question:
+                question_has_specific_product = True
+                break
+    
+    # 단순한 후속 질문인지 확인 (예: "응", "알려줘" 등)
+    is_simple_followup = question.strip() in ["응", "응해줘", "응알려줘", "더 알려줘", "더 자세히", "자세히 알려줘", "그거", "그것", "그 상품", "그 조항", "그것에 대해", "그거에 대해", "어떻게", "뭐야", "뭔가", "뭐지", "뭐하는", "뭐하는거야", "알려줘", "말해줘", "설명해줘", "상세히", "자세히", "더"]
+    
+    # 단순한 후속 질문이면 무조건 후속 질문 제기
+    if is_simple_followup and len(sql_results) > 0:
+        lines.extend([
+            "",
+            "⚠️ 중요: 단순한 후속 질문 감지 - 특정 상품이 지정되지 않았습니다.",
+            "답변 방식: '추천된 상품들의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요? 아래 목록에서 확인해 주세요:'",
+            "상품 목록을 불릿 포인트로 나열 (은행명: 상품명 형식)",
+            "구체적인 상품명을 요청하는 예시 제공"
+        ])
+    elif is_followup_question:
+        if not question_has_specific_product and len(sql_results) > 0:
+            # 상품이 있지만 질문에서 특정 상품을 지정하지 않은 경우
+            lines.extend([
+                "",
+                "⚠️ 중요: 후속 질문 - 특정 상품이 지정되지 않았습니다.",
+                "답변 방식: '추천된 상품들의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요? 아래 목록에서 확인해 주세요:'",
+                "상품 목록을 불릿 포인트로 나열 (은행명: 상품명 형식)",
+                "구체적인 상품명을 요청하는 예시 제공"
+            ])
+        else:
+            # 특정 상품이 지정된 경우
+            lines.extend([
+                "",
+                "⚠️ 중요: 후속 질문 - 특정 상품이 지정되었습니다.",
+                "답변 방식: 해당 상품의 상세한 주의사항과 조건을 설명하세요.",
+                "구체적인 수치, 비율, 기간, 조건을 명시하고 정확한 조항 번호와 내용으로 근거를 제시하세요."
+            ])
     
     return "\n".join(lines)
 
@@ -191,7 +192,7 @@ class GenerationAgent:
         relevant_chunks: List[Dict[str, Any]]
     ) -> str:
         """
-        최종 답변 생성
+        최종 답변 생성 (대화 컨텍스트 포함)
         
         Parameters
         ----------
@@ -201,6 +202,8 @@ class GenerationAgent:
             SQL 검색 결과
         relevant_chunks : List[Dict[str, Any]]
             관련성 있는 청크
+        chat_history : List[Dict[str, Any]], optional
+            이전 대화 기록
             
         Returns
         -------
@@ -211,11 +214,96 @@ class GenerationAgent:
             logger.error("No LLM provided")
             return "답변 생성을 위한 LLM이 설정되지 않았습니다."
         
+        # 단순한 후속 질문인지 확인
+        is_simple_followup = question.strip() in ["응", "응해줘", "응알려줘", "더 알려줘", "더 자세히", "자세히 알려줘", "그거", "그것", "그 상품", "그 조항", "그것에 대해", "그거에 대해", "어떻게", "뭐야", "뭔가", "뭐지", "뭐하는", "뭐하는거야", "알려줘", "말해줘", "설명해줘", "상세히", "자세히", "더"]
+        
+        # SQL 결과에서 실제 상품명들을 동적으로 추출
+        available_products = []
+        if sql_results:
+            for result in sql_results:
+                product_name = result.get('product_name', '').strip()
+                bank_name = result.get('bank_name', '').strip()
+                if product_name and bank_name:
+                    available_products.append(product_name)
+                    available_products.append(f"{bank_name} {product_name}")
+        
+        # 질문에 실제 존재하는 상품명이 포함되어 있는지 확인
+        has_specific_product = any(product in question for product in available_products)
+        
+        # 특정 상품명이 포함된 질문이면 바로 해당 상품 정보 제공
+        if has_specific_product and sql_results:
+            product_info = sql_results[0]  # 첫 번째 상품 정보 사용
+            bank_name = product_info.get('bank_name', '')
+            product_name = product_info.get('product_name', '')
+            loan_period = product_info.get('loan_period', 'N/A')
+            loan_limit = product_info.get('loan_limit', 'N/A')
+            loan_target = product_info.get('loan_target', 'N/A')
+            loan_conditions = product_info.get('loan_conditions', 'N/A')
+            
+            # 약관 관련 키워드가 있는지 확인
+            clause_keywords = ["약관", "조항", "상품약관", "주의사항", "조건", "내용", "자세히", "알려줘"]
+            has_clause_request = any(keyword in question for keyword in clause_keywords)
+            
+            if has_clause_request and relevant_chunks:
+                # 약관 정보가 요청된 경우 상품 정보 + 약관 정보 제공
+                clause_info = ""
+                for chunk in relevant_chunks[:3]:  # 상위 3개 약관 정보
+                    clause_name = chunk.get('clause_name', '')
+                    clause_content = chunk.get('content_preview', chunk.get('content', ''))
+                    if clause_name and clause_content:
+                        clause_info += f"\n**{clause_name}:**\n{clause_content[:300]}...\n"
+                
+                return f"""**{bank_name} {product_name}** 상품 정보 및 약관입니다:
+
+🏦 **은행**: {bank_name}
+📋 **상품명**: {product_name}
+👥 **대상**: {loan_target}
+⏰ **기간**: {loan_period}
+💰 **한도**: {loan_limit}
+📝 **조건**: {loan_conditions}
+
+**📚 주요 약관 내용:**
+{clause_info}
+
+더 자세한 약관 정보가 필요하시면 구체적인 조항명을 말씀해 주세요."""
+            else:
+                # 일반적인 상품 정보만 제공
+                return f"""**{bank_name} {product_name}** 상품 정보입니다:
+
+🏦 **은행**: {bank_name}
+📋 **상품명**: {product_name}
+👥 **대상**: {loan_target}
+⏰ **기간**: {loan_period}
+💰 **한도**: {loan_limit}
+📝 **조건**: {loan_conditions}
+
+이 상품의 약관에 대해 더 자세히 알고 싶으시면 "약관 알려줘" 또는 "주의사항 알려줘"라고 말씀해 주세요."""
+        
+        # 단순한 후속 질문이면 무조건 후속 질문 제기 (sql_results나 relevant_chunks가 있어도 무시)
+        if is_simple_followup:
+            # SQL 결과에서 동적으로 상품 리스트 생성
+            if sql_results:
+                product_list = []
+                for result in sql_results:
+                    bank_name = result.get('bank_name', '')
+                    product_name = result.get('product_name', '')
+                    if bank_name and product_name:
+                        product_list.append(f"- {bank_name}: {product_name}")
+                
+                product_list_text = "\n".join(product_list)
+                return f"""추천된 상품들의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요? 아래 목록에서 확인해 주세요:
+
+{product_list_text}
+
+예: '{sql_results[0].get('bank_name', '')} {sql_results[0].get('product_name', '')} 약관 알려줘'와 같이 상품명을 말씀해 주세요."""
+            else:
+                return """추천된 상품들의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요? 상품명을 말씀해 주세요."""
+        
         if not sql_results and not relevant_chunks:
             return "죄송합니다. 질문과 관련된 정보를 찾지 못했습니다. 다른 방식으로 질문해 주시겠어요?"
         
         try:
-            # 프롬프트 생성
+            # 프롬프트 생성 (수정됨)
             system_prompt = GENERATION_SYSTEM_PROMPT
             user_prompt = build_generation_prompt(question, sql_results, relevant_chunks)
             
@@ -225,24 +313,19 @@ class GenerationAgent:
                 {"role": "user", "content": user_prompt}
             ]
             
-            logger.debug(f"Calling LLM for answer generation (prompt length: {len(user_prompt)} chars)")
             response = self.llm.invoke(messages)
             answer = response.content if hasattr(response, "content") else str(response)
-            
-            # 빈 답변 체크
-            if not isinstance(answer, str) or not answer.strip():
-                raise ValueError("Empty answer from generation model")
             
             logger.info(f"Generated answer: {len(answer)} characters")
             return answer
             
         except Exception as e:
-            logger.exception(f"Answer generation failed: {e}")
-            return f"죄송합니다. 답변 생성 중 오류가 발생했습니다: {str(e)}"
+            logger.error(f"Answer generation failed: {e}")
+            return f"답변 생성 중 오류가 발생했습니다: {str(e)}"
     
     def run(self, state: Dict[str, Any]) -> Dict[str, Any]:
         """
-        LangGraph node에서 호출하기 위한 헬퍼
+        LangGraph node에서 호출하기 위한 헬퍼 (대화 컨텍스트 포함)
         
         Parameters
         ----------
@@ -250,7 +333,6 @@ class GenerationAgent:
             현재 상태
             - question: 사용자 질문
             - sql_results: SQL Agent에서 조회한 상품 정보 (List[Dict])
-            - sql_contents: SQL 결과 텍스트 요약 (List[str])
             - relevant_chunks: Evaluation Agent에서 필터링한 관련 청크 (List[Dict])
             
         Returns
@@ -258,60 +340,38 @@ class GenerationAgent:
         Dict[str, Any]
             answer가 추가된 상태
         """
-        try:
-            question = state.get("question", "")
-            sql_results = state.get("sql_results", [])
-            sql_contents = state.get("sql_contents", [])
-            relevant_chunks = state.get("relevant_chunks", [])
-            
-            logger.info(f"=== Generation Agent ===")
-            logger.info(f"SQL results: {len(sql_results)} products")
-            logger.info(f"Relevant chunks: {len(relevant_chunks)} chunks")
-            
-            # 청크 소스 분석
-            vector_chunks = [c for c in relevant_chunks if c.get('source') != 'web_search']
-            web_chunks = [c for c in relevant_chunks if c.get('source') == 'web_search']
-            logger.info(f"  - Vector DB: {len(vector_chunks)} chunks")
-            logger.info(f"  - Web Search: {len(web_chunks)} chunks")
-            
-            # SQL 결과 로깅 (상세)
-            if sql_results:
-                logger.info("SQL Results:")
-                for idx, result in enumerate(sql_results[:3], 1):  # 처음 3개만
-                    logger.info(f"  [{idx}] {result.get('bank_name', '')} - {result.get('product_name', '')}")
-            
-            # 답변 생성
-            answer = self.generate_answer(question, sql_results, relevant_chunks)
-            
-            # 답변 검증
-            if not answer or not isinstance(answer, str):
-                logger.error(f"Invalid answer generated: {type(answer)}")
-                answer = "죄송합니다. 답변 생성에 실패했습니다."
-            
-            # 상태 업데이트
-            state["answer"] = answer
-            
-            # 디버그 정보
-            debug = state.get("debug", {})
-            debug["generation"] = {
-                "sql_results_count": len(sql_results),
-                "sql_contents_count": len(sql_contents),
-                "relevant_chunks_count": len(relevant_chunks),
-                "vector_chunks_count": len(vector_chunks),
-                "web_chunks_count": len(web_chunks),
-                "answer_length": len(answer),
-                "has_sql_data": len(sql_results) > 0,
-                "has_vector_data": len(vector_chunks) > 0,
-                "has_web_data": len(web_chunks) > 0
-            }
-            state["debug"] = debug
-            
-            logger.info(f"Answer generated: {len(answer)} characters")
-            
-        except Exception as e:
-            logger.exception(f"GenerationAgent.run failed: {e}")
-            state["answer"] = f"죄송합니다. 답변 생성 중 오류가 발생했습니다: {str(e)}"
-            state["error"] = str(e)
+        question = state.get("question", "")
+        sql_results = state.get("sql_results", [])
+        relevant_chunks = state.get("relevant_chunks", [])
+        
+        # chat_history는 result에서 직접 가져오지 않고 빈 리스트로 처리
+        chat_history = []
+        
+        logger.info(f"=== Generation Agent ===")
+        logger.info(f"SQL results: {len(sql_results)} products")
+        logger.info(f"Relevant chunks: {len(relevant_chunks)} chunks")
+        logger.info(f"Chat history: {len(chat_history)} messages")
+        
+        # 답변 생성
+        answer = self.generate_answer(question, sql_results, relevant_chunks)
+        
+        # 상태 업데이트
+        state["answer"] = answer
+        
+        # 디버그 정보
+        debug = state.get("debug", {})
+        debug["generation"] = {
+            "sql_results_count": len(sql_results),
+            "relevant_chunks_count": len(relevant_chunks),
+            "chat_history_count": len(chat_history),
+            "answer_length": len(answer),
+            "has_sql_data": len(sql_results) > 0,
+            "has_vector_data": len(relevant_chunks) > 0,
+            "has_chat_history": len(chat_history) > 0
+        }
+        state["debug"] = debug
+        
+        logger.info(f"Answer generated: {len(answer)} characters")
         
         return state
 

@@ -46,21 +46,42 @@ class GraphNodes:
         documents = state.get("documents", []) or []
         sources: List[Dict[str, Any]] = []
 
-        for i, doc in enumerate(documents):
-            meta = getattr(doc, "metadata", {}) or {}
-            content = getattr(doc, "page_content", "") or ""
+        # Limit to top 10 sources to avoid overwhelming output
+        limited_documents = documents[:10]
 
-            preview = re.sub(r"\s+", " ", content).strip()
-            if len(preview) > 200:
-                preview = preview[:200] + "…"
+        for i, doc in enumerate(limited_documents):
+            meta = getattr(doc, "metadata", {}) or {}
+            
+            # 간단한 출처 정보만 생성 (내용 제외)
+            bank_name = meta.get("은행명", "") or meta.get("bank_name", "")
+            document_name = meta.get("문서명", "") or meta.get("document_name", "")
+            product_name = meta.get("상품이름", "") or meta.get("product_name", "")
+            clause = meta.get("조항", "") or meta.get("clause", "")
+            clause_name = meta.get("조항이름", "") or meta.get("clause_name", "")
+            
+            # 간단한 출처 설명 생성
+            source_parts = []
+            if bank_name:
+                source_parts.append(bank_name)
+            if document_name:
+                source_parts.append(document_name)
+            if product_name:
+                source_parts.append(product_name)
+            if clause:
+                source_parts.append(clause)
+            if clause_name:
+                source_parts.append(clause_name)
+            
+            simple_preview = " - ".join(source_parts) if source_parts else "문서"
 
             sources.append({
                 "index": i + 1,
-                "bank_name": meta.get("은행명", "") or meta.get("bank_name", ""),
-                "product_name": meta.get("상품이름", "") or meta.get("product_name", ""),
-                "clause": meta.get("조항", "") or meta.get("clause", ""),
-                "clause_name": meta.get("조항이름", "") or meta.get("clause_name", ""),
-                "content_preview": preview,
+                "bank_name": bank_name,
+                "document_name": document_name,
+                "product_name": product_name,
+                "clause": clause,
+                "clause_name": clause_name,
+                "content_preview": simple_preview,
             })
 
         logger.info(f"Formatted {len(sources)} sources")
