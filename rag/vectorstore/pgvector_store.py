@@ -35,8 +35,13 @@ class PgVectorStore(VectorStore):
             embeddings: Embedding provider
         """
         self.connection = connection
-        self.embeddings = embeddings
+        self._embeddings = embeddings
         logger.info("Initialized PgVectorStore")
+    
+    @property
+    def embeddings(self) -> EmbeddingProvider:
+        """Get the embeddings provider."""
+        return self._embeddings
     
     def add_documents(
         self,
@@ -64,7 +69,7 @@ class PgVectorStore(VectorStore):
             
             # Embed batch
             try:
-                embeddings = self.embeddings.embed_texts(batch_texts)
+                embeddings = self._embeddings.embed_texts(batch_texts)
             except Exception as e:
                 logger.error(f"Failed to embed batch {i//batch_size + 1}: {e}")
                 continue
@@ -124,7 +129,7 @@ class PgVectorStore(VectorStore):
         
         # Embed query
         try:
-            query_embedding = self.embeddings.embed_query(query)
+            query_embedding = self._embeddings.embed_query(query)
         except Exception as e:
             logger.error(f"Failed to embed query: {e}")
             raise

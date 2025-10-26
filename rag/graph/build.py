@@ -112,6 +112,7 @@ def build_rag_graph(
     
     def classify_node(state: State) -> State:
         """1. Classification Node"""
+        logger.info(">>> Enter classify_node")
         logger.info("=== Step 1: Classification ===")
         question = state["question"]
         
@@ -139,6 +140,7 @@ def build_rag_graph(
     
     def sql_node(state: State) -> State:
         """2. SQL Retrieval Node"""
+        logger.info(">>> Enter sql_node")
         logger.info("=== Step 2: SQL Retrieval ===")
         
         # Agent 호출
@@ -150,19 +152,45 @@ def build_rag_graph(
     
     def vector_node(state: State) -> State:
         """3. Vector DB Retrieval Node"""
+        logger.info(">>> Enter vector_node")
         logger.info("=== Step 3: Vector DB Retrieval ===")
         
-        search_state = {
-            "query": state.get("rewritten_query", state["question"]),  # 재작성된 쿼리 우선 사용
-            "top_k": state.get("top_k", top_k),
-            "bank_name": state.get("bank_name"),
-            "product_type": state.get("product_type"),
-            "sql_results": state.get("sql_results", []),
-            "product_name": state.get("product_name"),
-            "loan_type": state.get("loan_type")
-        }
-        
-        result_state = vector_search_fn(search_state)
+        try:
+            # query 확보 (우선순위: rewritten_query > question)
+            query = state.get("rewritten_query") or state.get("question") or ""
+            
+            if not query:
+                logger.error(f"No query found in state! Keys: {list(state.keys())}")
+            
+            search_state = {
+                "query": query,
+                "question": state.get("question", ""),  # 백업용
+                "top_k": state.get("top_k", top_k),
+                "bank_name": state.get("bank_name"),
+                "product_type": state.get("product_type"),
+                "sql_results": state.get("sql_results", []),
+                "product_name": state.get("product_name"),
+                "loan_type": state.get("loan_type")
+            }
+            
+            query_preview = search_state.get('query', '')
+            if query_preview:
+                query_preview = query_preview[:50] + '...' if len(query_preview) > 50 else query_preview
+            else:
+                query_preview = 'EMPTY'
+            
+            logger.info(f"Calling vector_search_fn with query='{query_preview}', bank={search_state['bank_name']}, type={search_state['product_type']}")
+            
+            result_state = vector_search_fn(search_state)
+            
+            logger.info(f"vector_search_fn returned successfully")
+        except Exception as e:
+            logger.exception(f"Vector search failed: {e}")
+            result_state = {
+                "documents": [],
+                "used_fallback_search": False,
+                "error": str(e)
+            }
         
         # documents를 vector_chunks로 변환
         documents = result_state.get("documents", [])
@@ -202,6 +230,7 @@ def build_rag_graph(
     
     def rewrite_query_node(state: State) -> State:
         """4-1. Query Rewrite Node"""
+        logger.info(">>> Enter rewrite_query_node")
         logger.info("=== Step 4-1: Query Rewrite ===")
         
         rewrite_state = {
@@ -220,6 +249,7 @@ def build_rag_graph(
     
     def web_search_node(state: State) -> State:
         """4-2. Web Search Node (Tavily)"""
+        logger.info(">>> Enter web_search_node")
         logger.info("=== Step 4-2: Web Search ===")
         
         # TODO: Tavily API 연동 필요
@@ -233,38 +263,73 @@ def build_rag_graph(
     
     def eval_node(state: State) -> State:
         """5. Evaluation Node (양 + 질 통합 검증)"""
+        logger.info(">>> Enter eval_node")
         logger.info("=== Step 5: Chunk Evaluation ===")
         
-        # Agent 호출
-        state = eval_agent.run(state)
-        
-        relevant_count = state.get("relevant_chunks_count", 0)
+        question = state.get("question", "")
+        vector_chunks = state.get("vector_chunks", [])
         retry_count = state.get("retry_count", 0)
         
-        logger.info(f"Evaluation: {relevant_count} relevant chunks")
+        logger.info(f"Input chunks: {len(vector_chunks)}")
         
-        # 재시도 판단 (최소 3개, 최대 1회)
-        min_chunks = 3
-        max_retries = 1
-        
-        if relevant_count < min_chunks and retry_count < max_retries:
-            state["should_retry"] = True
-            state["retry_reason"] = "insufficient_chunks"
-            state["retry_count"] = retry_count + 1
-            logger.warning(f"Retry needed: {relevant_count} < {min_chunks} (attempt {retry_count + 1}/{max_retries})")
-        elif relevant_count < min_chunks and retry_count >= max_retries:
+        # 청크가 없는 경우
+        if not vector_chunks:
+            logger.warning("No chunks to evaluate")
+            state["relevant_chunks"] = []
+            state["relevant_chunks_count"] = 0
             state["should_retry"] = False
-            state["retry_reason"] = "max_retries_reached"
-            logger.warning(f"Max retries reached. Proceeding with {relevant_count} chunks")
-        else:
-            state["should_retry"] = False
-            state["retry_reason"] = "sufficient"
-            logger.info(f"Sufficient chunks: {relevant_count} >= {min_chunks}")
+            state["retry_reason"] = "no_chunks"
+            logger.info(f"Exit eval_node: should_retry={state['should_retry']}")
+            return state
         
+        try:
+            # LLM 평가 수행
+            relevant_chunks = eval_agent.evaluate_chunks(question, vector_chunks)
+            relevant_count = len(relevant_chunks)
+            
+            logger.info(f"Quality evaluation: {relevant_count}/{len(vector_chunks)} chunks are relevant")
+            
+            # 평가 결과 개수 불일치 방어
+            if len(relevant_chunks) > len(vector_chunks):
+                logger.warning(f"Eval count ({len(relevant_chunks)}) > chunk count ({len(vector_chunks)}); truncating")
+                relevant_chunks = relevant_chunks[:len(vector_chunks)]
+                relevant_count = len(relevant_chunks)
+            
+            state["relevant_chunks"] = relevant_chunks
+            state["relevant_chunks_count"] = relevant_count
+            
+            # 재시도 판단
+            min_chunks = 3
+            max_retries = 1
+            
+            if relevant_count >= min_chunks:
+                state["should_retry"] = False
+                state["retry_reason"] = "sufficient"
+                logger.info(f"✓ Sufficient chunks: {relevant_count} ≥ {min_chunks}")
+            elif retry_count < max_retries:
+                state["should_retry"] = True
+                state["retry_reason"] = "insufficient_chunks"
+                state["retry_count"] = retry_count + 1
+                logger.warning(f"✗ Insufficient chunks: {relevant_count} < {min_chunks}. Retry {retry_count + 1}/{max_retries}")
+            else:
+                state["should_retry"] = False
+                state["retry_reason"] = "max_retries_reached"
+                logger.warning(f"Max retries reached. Proceeding with {relevant_count} chunks")
+            
+        except Exception as e:
+            logger.error(f"Evaluation failed: {e}", exc_info=True)
+            # 에러 시 모든 청크 사용
+            state["relevant_chunks"] = vector_chunks
+            state["relevant_chunks_count"] = len(vector_chunks)
+            state["should_retry"] = False
+            state["retry_reason"] = "evaluation_error"
+        
+        logger.info(f"Exit eval_node: should_retry={state.get('should_retry', 'NOT_SET')}, reason={state.get('retry_reason', 'NOT_SET')}")
         return state
     
     def format_response_node(state: State) -> State:
         """7. Format Response Node"""
+        logger.info(">>> Enter format_response_node")
         logger.info("=== Step 7: Format Response ===")
         
         # 출처 포맷팅
@@ -277,14 +342,29 @@ def build_rag_graph(
         return state
     
     def generation_node(state: State) -> State:
-        """5. Answer Generation Node"""
-        logger.info("=== Step 5: Answer Generation ===")
+        """6. Answer Generation Node"""
+        logger.info(">>> Enter generation_node")
+        logger.info("=== Step 6: Answer Generation ===")
         
-        # Agent 호출
-        state = gen_agent.run(state)
+        try:
+            # Agent 호출
+            state = gen_agent.run(state)
+            
+            # answer 키 보장
+            if "answer" not in state or not state.get("answer"):
+                logger.error("GenerationAgent did not set 'answer' key")
+                state["answer"] = "죄송합니다. 답변 생성 중 오류가 발생했습니다."
+                state["error"] = "Missing answer from generation agent"
+            
+            answer_len = len(state.get("answer", ""))
+            logger.info(f"Generated answer: {answer_len} characters")
+            
+        except Exception as e:
+            logger.exception(f"Generation failed: {e}")
+            state["answer"] = f"죄송합니다. 답변 생성 중 오류가 발생했습니다: {e}"
+            state["error"] = str(e)
         
-        answer_len = len(state.get("answer", ""))
-        logger.info(f"Generated answer: {answer_len} characters")
+        logger.info("Exit generation_node")
         return state
     
     # ═══════════════════════════════════════════════════════
@@ -311,17 +391,43 @@ def build_rag_graph(
     # 조건부 분기 함수
     def should_retry_search(state: State) -> str:
         """eval 후 재시도 필요 여부 판단"""
-        if state.get("should_retry", False):
+        should_retry = state.get("should_retry", False)
+        retry_reason = state.get("retry_reason", "unknown")
+        
+        logger.info(f">>> Routing decision: should_retry={should_retry}, reason={retry_reason}")
+        
+        if should_retry:
+            logger.info("→ Routing to: rewrite_query (retry)")
             return "retry"
-        return "generate"
+        else:
+            logger.info("→ Routing to: generate")
+            return "generate"
     
+    # 조건부 분기 함수 (SQL 결과 체크)
     def check_sql_results(state: State) -> str:
-        """SQL 결과 확인"""
+        """SQL 결과 확인 - 0건이면 종료"""
         sql_results = state.get("sql_results", [])
+        
         if len(sql_results) == 0:
-            logger.warning("No SQL results found. Returning 'retry' message.")
-            state["answer"] = "다시 질문하세요."
+            logger.warning("No SQL results found. Asking user to rephrase question.")
+            
+            # 더 구체적인 안내 메시지
+            product_type = state.get("product_type", "")
+            bank_name = state.get("bank_name", "")
+            
+            state["answer"] = (
+                f"죄송합니다. 질문과 관련된 상품을 찾지 못했습니다.\n\n"
+                f"**현재 지원 은행:** 우리은행, 국민은행\n"
+                f"**현재 지원 상품:** 대출, 예금, 적금\n\n"
+                f"**질문 예시:**\n"
+                f"- 우리은행 전세자금대출 금리는?\n"
+                f"- 국민은행 예금 상품 알려줘\n"
+                f"- 우리은행 적금 금리는?\n\n"
+                f"은행명과 상품명을 명확히 해서 다시 질문해 주시겠어요?"
+            )
             return "end"
+        
+        logger.info(f"SQL found {len(sql_results)} products. Proceeding to vector search.")
         return "vector"
     
     # 기본 흐름
@@ -407,7 +513,7 @@ def create_rag_system(
     
     Note
     ----
-    평가용 LLM (gpt-4o, temperature=0.0)은 EvaluationAgent 내부에서 자동 생성됨
+    평가용 LLM (gpt-5-mini, temperature=0.0)은 EvaluationAgent 내부에서 자동 생성됨
     
     LangSmith 사용 시 환경변수 설정 필요:
     - LANGCHAIN_TRACING_V2=true

@@ -69,8 +69,10 @@ def main(file_path):
         if file_path:
             csv_path = file_path
         else:
-            # Docker 환경 전용 경로
+            # 가능한 CSV 파일 경로들
             csv_paths = [
+                "data/final_embedding_data_v7.csv",
+                "./data/final_embedding_data_v7.csv",
                 "docker/initdb/final_embedding_data_v7.csv",
                 "./docker/initdb/final_embedding_data_v7.csv",
             ]
@@ -114,7 +116,7 @@ def main(file_path):
 
 
 if __name__ == "__main__":
-    # Docker 환경 전용 경로
-    file_path = "./docker/initdb/final_embedding_data_v7.csv"
+    # CSV 파일 경로 (data 디렉토리)
+    file_path = "./data/final_embedding_data_v7.csv"
     exit_code = main(file_path)
     sys.exit(exit_code)
