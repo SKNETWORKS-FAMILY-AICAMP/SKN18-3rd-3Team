@@ -1,1 +1,0 @@
-COPY rdb.bank_interest_rate (bank_name, product_name, product_category, rate_type, rate_condition, interest_rate) FROM '/docker-entrypoint-initdb.d/RDB2_cleaned.csv' WITH (FORMAT csv, HEADER true, ENCODING 'UTF8');

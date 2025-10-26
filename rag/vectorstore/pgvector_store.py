@@ -2,6 +2,7 @@
 
 from typing import List, Dict, Any, Optional, Tuple
 from langchain.schema import Document
+from langchain_core.vectorstores import VectorStore
 
 from rag.db.connection import DatabaseConnection
 from rag.embeddings.provider import EmbeddingProvider
@@ -13,7 +14,7 @@ from rag.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-class PgVectorStore:
+class PgVectorStore(VectorStore):
     """
     Vector store implementation using PostgreSQL with pgvector extension.
     
@@ -191,24 +192,84 @@ class PgVectorStore:
         results = self.similarity_search_with_score(query, k, filter)
         return [doc for doc, _ in results]
     
-    @classmethod
-    def from_documents(
-        cls,
-        documents: List[Document],
-        embeddings: EmbeddingProvider,
-        connection: DatabaseConnection
-    ) -> "PgVectorStore":
+    def add_texts(
+        self,
+        texts: List[str],
+        metadatas: Optional[List[dict]] = None,
+        **kwargs: Any
+    ) -> List[str]:
         """
-        Create a PgVectorStore from documents.
+        Add texts to the vector store (required by VectorStore).
         
         Args:
-            documents: List of documents to add
-            embeddings: Embedding provider
+            texts: List of text strings
+            metadatas: Optional list of metadata dicts
+            **kwargs: Additional arguments
+        
+        Returns:
+            List of document IDs
+        """
+        # Convert texts to Documents
+        documents = []
+        for i, text in enumerate(texts):
+            metadata = metadatas[i] if metadatas and i < len(metadatas) else {}
+            doc = Document(page_content=text, metadata=metadata)
+            documents.append(doc)
+        
+        return self.add_documents(documents)
+    
+    @classmethod
+    def from_texts(
+        cls,
+        texts: List[str],
+        embedding: EmbeddingProvider,
+        metadatas: Optional[List[dict]] = None,
+        connection: Optional[DatabaseConnection] = None,
+        **kwargs: Any
+    ) -> "PgVectorStore":
+        """
+        Create a PgVectorStore from texts (required by VectorStore).
+        
+        Args:
+            texts: List of text strings
+            embedding: Embedding provider
+            metadatas: Optional metadata
             connection: Database connection
+            **kwargs: Additional arguments
         
         Returns:
             PgVectorStore instance
         """
-        store = cls(connection, embeddings)
+        if connection is None:
+            raise ValueError("connection parameter is required")
+        
+        store = cls(connection, embedding)
+        store.add_texts(texts, metadatas)
+        return store
+    
+    @classmethod
+    def from_documents(
+        cls,
+        documents: List[Document],
+        embedding: EmbeddingProvider,
+        connection: Optional[DatabaseConnection] = None,
+        **kwargs: Any
+    ) -> "PgVectorStore":
+        """
+        Create a PgVectorStore from documents (required by VectorStore).
+        
+        Args:
+            documents: List of documents to add
+            embedding: Embedding provider
+            connection: Database connection
+            **kwargs: Additional arguments
+        
+        Returns:
+            PgVectorStore instance
+        """
+        if connection is None:
+            raise ValueError("connection parameter is required")
+        
+        store = cls(connection, embedding)
         store.add_documents(documents)
         return store
