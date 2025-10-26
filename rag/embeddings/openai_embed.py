@@ -3,6 +3,7 @@
 from typing import List
 from openai import OpenAI
 from tenacity import retry, stop_after_attempt, wait_exponential
+from langchain_core.embeddings import Embeddings
 
 from rag.embeddings.provider import EmbeddingProvider
 from rag.core.logger import get_logger
@@ -11,7 +12,7 @@ from rag.core.logger import get_logger
 logger = get_logger(__name__)
 
 
-class OpenAIEmbeddings(EmbeddingProvider):
+class OpenAIEmbeddings(Embeddings, EmbeddingProvider):
     """
     OpenAI embedding provider with retry logic.
     
@@ -49,9 +50,9 @@ class OpenAIEmbeddings(EmbeddingProvider):
         stop=stop_after_attempt(5),  # 재시도 횟수 증가 (3 → 5)
         wait=wait_exponential(multiplier=2, min=4, max=60)  # 대기 시간 증가
     )
-    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+    def embed_documents(self, texts: List[str]) -> List[List[float]]:
         """
-        Embed multiple texts with retry logic.
+        Embed multiple documents with retry logic (LangChain standard method).
         
         Args:
             texts: List of texts to embed
@@ -60,7 +61,7 @@ class OpenAIEmbeddings(EmbeddingProvider):
             List of embedding vectors
         """
         try:
-            logger.debug(f"Embedding {len(texts)} texts")
+            logger.debug(f"Embedding {len(texts)} documents")
             
             response = self.client.embeddings.create(
                 model=self.model,
@@ -68,12 +69,24 @@ class OpenAIEmbeddings(EmbeddingProvider):
             )
             
             embeddings = [item.embedding for item in response.data]
-            logger.debug(f"Successfully embedded {len(embeddings)} texts")
+            logger.debug(f"Successfully embedded {len(embeddings)} documents")
             
             return embeddings
         except Exception as e:
-            logger.error(f"Failed to embed texts: {e}")
+            logger.error(f"Failed to embed documents: {e}")
             raise
+    
+    def embed_texts(self, texts: List[str]) -> List[List[float]]:
+        """
+        Embed multiple texts (backward compatibility).
+        
+        Args:
+            texts: List of texts to embed
+        
+        Returns:
+            List of embedding vectors
+        """
+        return self.embed_documents(texts)
 
     
     @retry(

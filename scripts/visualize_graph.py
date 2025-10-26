@@ -13,7 +13,10 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from rag.graph.build import create_rag_system
 from rag.llm.get_llm import get_llm_model
-from rag.retriever import BankRetriever
+from rag.vectorstore.pgvector_store import PgVectorStore
+from rag.embeddings.openai_embed import OpenAIEmbeddings
+from rag.db.connection import DatabaseConnection
+from rag.core.config import get_config
 
 
 def visualize_graph():
@@ -22,14 +25,27 @@ def visualize_graph():
     """
     print("RAG 그래프 생성 중 (Sequential Mode)...")
     
-    # LLM 및 Retriever 초기화
+    # 설정 로드
+    config = get_config()
+    
+    # LLM 초기화
     llm = get_llm_model()
-    retriever = BankRetriever()
+    
+    # VectorStore 초기화
+    db_connection = DatabaseConnection(db_url=config.DB_URL)
+    embeddings = OpenAIEmbeddings(
+        model=config.EMBED_MODEL,
+        api_key=config.OPENAI_API_KEY
+    )
+    vectorstore = PgVectorStore(
+        connection=db_connection,
+        embeddings=embeddings
+    )
     
     # RAG 시스템 생성
     graph = create_rag_system(
         llm=llm,
-        retriever=retriever,
+        vectorstore=vectorstore,
         enable_routing=False,
         enable_langsmith=False
     )
@@ -70,7 +86,7 @@ def visualize_graph():
     print("                         ▼")
     print("┌─────────────────────────────────────────────────────────────────┐")
     print("│  4. EVAL NODE                                                   │")
-    print("│     - 청크 관련성 평가 (gpt-4o, temperature=0.0)                │")
+    print("│     - 청크 관련성 평가 (gpt-5-mini, temperature=0.0)            │")
     print("│     - 관련성 높은 청크만 필터링                                 │")
     print("└────────────────────────┬────────────────────────────────────────┘")
     print("                         │")
@@ -100,7 +116,7 @@ def visualize_graph():
     print()
     print("✓ Dual LLM Strategy")
     print("  - Generation LLM: gpt-5-nano (temperature=1.0) - 창의적 답변")
-    print("  - Evaluation LLM: gpt-4o (temperature=0.0) - 일관된 평가")
+    print("  - Evaluation LLM: gpt-5-mini (temperature=0.0) - 일관된 평가")
     print()
     print("✓ Sequential Execution")
     print("  - 모든 노드를 순차적으로 실행")

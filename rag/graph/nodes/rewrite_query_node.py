@@ -2,18 +2,17 @@
 
 from typing import Dict, Any
 from rag.core.logger import get_logger
-from rag.llm.openai_chat import OpenAIChatModel
 
 
 logger = get_logger(__name__)
 
 
-def create_rewrite_query_node(llm: OpenAIChatModel):
+def create_rewrite_query_node(llm: Any):
     """
     질문 재정의 노드 생성 함수
     
     Args:
-        llm: OpenAIChatModel instance
+        llm: LLM model instance (ChatOpenAI)
     
     Returns:
         rewrite_query function
@@ -54,11 +53,14 @@ def create_rewrite_query_node(llm: OpenAIChatModel):
 위 질문을 더 나은 검색 결과를 얻을 수 있도록 재작성하세요.
 재작성된 질문만 출력하세요."""
 
-            rewritten_query = llm.generate(
-                system_prompt=system_prompt,
-                user_prompt=user_prompt,
-                temperature=0.3
-            ).strip()
+            messages = [
+                {"role": "system", "content": system_prompt},
+                {"role": "user", "content": user_prompt}
+            ]
+            
+            response = llm.invoke(messages)
+            rewritten_query = response.content if hasattr(response, "content") else str(response)
+            rewritten_query = rewritten_query.strip()
             
             logger.info(f"Query rewritten: {rewritten_query}")
             

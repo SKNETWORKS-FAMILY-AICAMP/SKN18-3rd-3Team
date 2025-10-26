@@ -11,7 +11,6 @@ sys.path.insert(0, str(PROJECT_ROOT))
 
 from rag.graph.build import create_rag_system
 from rag.llm.get_llm import get_llm_model
-from rag.retriever import BankRetriever
 from rag.vectorstore.pgvector_store import PgVectorStore
 from rag.embeddings.openai_embed import OpenAIEmbeddings
 from rag.db.connection import DatabaseConnection
@@ -40,8 +39,8 @@ def test_rag(question: str):
     llm = get_llm_model()
     print("✓ 생성용 LLM 초기화 완료 (gpt-5-nano, temperature=1.0)")
     
-    # Retriever 초기화
-    print("\nRetriever 초기화 중...")
+    # VectorStore 초기화
+    print("\nVectorStore 초기화 중...")
     
     # DB 연결 초기화
     db_connection = DatabaseConnection(db_url=config.DB_URL)
@@ -61,19 +60,15 @@ def test_rag(question: str):
     )
     print("✓ VectorStore 초기화 완료")
     
-    # Retriever 초기화
-    retriever = BankRetriever(vectorstore=vectorstore)
-    print("✓ Retriever 초기화 완료")
-    
     # RAG 시스템 생성 (build.py 사용)
     print("\nRAG 그래프 생성 중...")
-    print("  - 평가용 LLM은 EvaluationAgent 내부에서 자동 생성됩니다 (gpt-4o, temperature=0.0)")
+    print("  - 평가용 LLM은 EvaluationAgent 내부에서 자동 생성됩니다 (gpt-5-mini, temperature=0.0)")
     print("  - 청크 관련성 임계값: 35.0 (완화됨)")
     print("  - 조건부 라우팅: 비활성화 (순차 실행)")
     print("  - LangSmith 추적: 비활성화")
     graph = create_rag_system(
         llm=llm,
-        retriever=retriever,
+        vectorstore=vectorstore,
         top_k=8,
         relevance_threshold=35.0,  # 60.0 -> 35.0으로 완화
         enable_routing=False,
