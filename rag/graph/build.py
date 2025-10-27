@@ -342,8 +342,8 @@ def build_rag_graph(
         # 출처 포맷팅
         state = format_nodes.format_response(state)
         
-        # 답변에 출처 첨부하지 않음 (app.py에서 처리)
-        # state = format_nodes.append_sources_to_answer(state)
+        # 답변에 출처 첨부 (맨 마지막에)
+        state = format_nodes.append_sources_to_answer(state)
         
         logger.info("Response formatted with sources")
         return state
@@ -412,8 +412,9 @@ def build_rag_graph(
     
     # 조건부 분기 함수 (SQL 결과 체크)
     def check_sql_results(state: State) -> str:
-        """SQL 결과 확인 - 0건이면 종료"""
+        """SQL 결과 확인 후 라우팅 - 상품 추천은 vector 스킵"""
         sql_results = state.get("sql_results", [])
+        intent = state.get("intent", "")
         
         if len(sql_results) == 0:
             logger.warning("No SQL results found. Asking user to rephrase question.")
@@ -434,6 +435,11 @@ def build_rag_graph(
             )
             return "end"
         
+        # 상품 추천만 요청한 경우 (product_recommendation)는 vector 검색 스킵
+        if intent == "product_recommendation":
+            logger.info("Product recommendation only. Skipping vector search and proceeding directly to generation.")
+            return "generate"
+        
         logger.info(f"SQL found {len(sql_results)} products. Proceeding to vector search.")
         return "vector"
     
@@ -447,6 +453,7 @@ def build_rag_graph(
         check_sql_results,
         {
             "vector": "vector",
+            "generate": "generate",
             "end": END
         }
     )
@@ -479,10 +486,10 @@ def build_rag_graph(
     compiled_graph = workflow.compile()
     logger.info("Graph compiled successfully")
     
-    # LangSmith 설정을 그래프 메타데이터에 저장
-    if enable_langsmith and langsmith_config:
-        compiled_graph._langsmith_config = langsmith_config
-        logger.info("LangSmith config attached to graph")
+    # LangSmith는 환경 변수를 통해 자동으로 활성화됨
+    # 별도의 설정 불필요
+    if enable_langsmith:
+        logger.info("LangSmith tracing enabled via environment variables")
     
     return compiled_graph
 

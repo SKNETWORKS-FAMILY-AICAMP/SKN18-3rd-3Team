@@ -38,9 +38,12 @@ GENERATION_SYSTEM_PROMPT = """당신은 한국 은행 상품 전문 상담사입
 - **중요: 이 규칙은 다른 모든 규칙보다 우선합니다!**
 
 **📋 조항 질문인 경우:**
-- 답변: **2문단** (4-5문장)
-- 질문 요약
-- **구체적인 수치, 비율, 기간, 조건**을 명시한 주요약관 내용 및 주의사항 설명
+- 답변 구조: **상품 정보 → 주요 약관 설명**
+- **1단계: 상품 간단 소개** (1-2문장)
+  ** 절대 긴 설명 금지! 최대 350자로로"
+  **주요약관 내용 및 주의사항 설명, 단 모든 약관을 모두 나열하는 방식으로 설명하지 말것**
+  ** 핵심조항 3만 설명
+  **여러 조항을 종합하여 가장 중요한 주의사항과 내용을 요약
 - **정확한 조항 번호와 내용**으로 근거 제시 (예: "제3조 2항에 따르면...")
 - **실용적인 정보** 포함 (필요 서류, 신청 절차, 제한 사항 등)
 - 전문용어는 풀어서 설명
@@ -98,19 +101,32 @@ def build_generation_prompt(
     
     lines.extend([
         "",
-        "약관 정보:"
+        "약관 정보 (여러 조항을 종합하여 분석):"
     ])
     
     if relevant_chunks:
         vector_chunks = [c for c in relevant_chunks if c.get('source') != 'web_search']
-        for chunk in vector_chunks[:2]:  # 최대 2개만
-            lines.append(f"- {chunk.get('bank_name', '')} {chunk.get('clause', '')} {chunk.get('clause_name', '')}")
+        for i, chunk in enumerate(vector_chunks[:8]):  # 최대 8개 - 여러 조항을 종합 분석
+            clause_info = f"- 조항 {i+1}: {chunk.get('bank_name', '')} {chunk.get('clause', '')} {chunk.get('clause_name', '')}"
+            if chunk.get('content'):
+                preview = chunk.get('content', '')[:200] + '...' if len(chunk.get('content', '')) > 200 else chunk.get('content', '')
+                lines.append(f"{clause_info}")
+                lines.append(f"  내용: {preview}")
+            else:
+                lines.append(clause_info)
     else:
         lines.append("- 약관 정보 없음")
     
     lines.extend([
-        "",
-        "위 정보로 간결하게 답변하세요."
+        "위 정보를 바탕으로 종합적으로 분석하여 답변하세요:",
+        "- 여러 조항을 종합하여 가장 중요한 주의사항과 내용을 요약",
+        "- 핵심조항 3개에 대해서만 상세 설명(각 조항은 2줄이내)"
+        "- 각 주의사항이 중요한 이유와 실제 영향 설명",
+        "- 구체적인 수치와 조건을 명시",
+        "- 정확한 조항 번호로 근거 제시 (예: '제3조 2항에 따르면...')",
+        "- 전문용어는 쉽게 풀어서 설명",
+        "- 상세하게 작성하되 간결하게 유지"
+        "- 마지막에 요약"
     ])
     
     # 후속 질문 컨텍스트 추가
