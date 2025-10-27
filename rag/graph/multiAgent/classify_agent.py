@@ -57,6 +57,9 @@ TARGET_SYNONYM: Dict[str, str] = {
     "군복무자": "군인"
 }
 
+COMPOUND_SUFFIXES = ["부부", "기업", "금리", "대출", "예금", "적금", "상품", "대상", "전세", "청년"]
+STOPWORD_TOKENS = {"알려줘", "추천", "말해줘", "찾아줘", "궁금", "해주세요", "주세요"}
+
 ###################################################
 # LLM 정규화 이전 간단한 정규화 진행
 ###################################################
@@ -80,13 +83,43 @@ def _dedup(seq: List[str]) -> List[str]:
 
 
 def _tokenize_keywords(*texts: Optional[str]) -> List[str]:
+    def _expand_compound_token(token: str) -> List[str]:
+        expanded = [token]
+        for suffix in COMPOUND_SUFFIXES:
+            if token.endswith(suffix) and len(token) > len(suffix):
+                prefix = token[: -len(suffix)]
+                if len(prefix) > 1 and prefix not in expanded:
+                    expanded.append(prefix)
+                if suffix not in expanded:
+                    expanded.append(suffix)
+        return expanded
+
     tokens: List[str] = []
     for text in texts:
         if not text:
             continue
-        tokens.extend(re.findall(r"[가-힣A-Za-z0-9]+", text))
-    # 한 글자 토큰은 노이즈가 커서 제거
+        raw_tokens = re.findall(r"[가-힣A-Za-z0-9]+", text)
+        for tok in raw_tokens:
+            if len(tok) <= 1:
+                continue
+            tokens.extend(_expand_compound_token(tok))
     return [tok for tok in tokens if len(tok) > 1]
+
+
+def _remove_bank_tokens(keywords: List[str], bank_name: Optional[str]) -> List[str]:
+    if not bank_name:
+        return keywords
+    target = norm_key(bank_name)
+    filtered: List[str] = []
+    seen = set()
+    for kw in keywords:
+        normalized_kw = norm_key(kw)
+        if normalized_kw == target or normalized_kw in STOPWORD_TOKENS:
+            continue
+        if kw not in seen:
+            seen.add(kw)
+            filtered.append(kw)
+    return filtered
 
 def extract_topk_candidates(question: str, K: int = 6) -> Tuple[List[str], List[str]]:
     """질문에서 은행 후보만 뽑고, 상품 후보는 LLM에 전적으로 맡깁니다."""
@@ -194,6 +227,7 @@ SYSTEM_PROMPT = (
     "loan_target은 아래 후보 중 하나 또는 null입니다.\n"
     "후보: 개인, 세대주, 전문직, 임차인, 기업, 장애인, 근로소득자, 임직원, 부부, 개인사업자, 공무원, "
     "주택매매, 분양계약자, 담보, 군인, 소상공인, 주택건설등록업자, 분양, 주택소유, 폐업\n"
+    "변형 표현(예: 신혼부부, 맞벌이부부, 청년 부부 등)은 반드시 위 목록 중 가장 가까운 값으로 정규화하세요. 예: 신혼부부 → '부부'.\n"
     "허용된 값 외의 새 태그/용어를 만들지 마세요.\n"
     "가능하면 confidence(0.0~1.0)와 reasoning(1~2문장)을 포함하세요.\n"
 )
@@ -345,6 +379,10 @@ def run_intent_agent(
         if extra_tokens:
             merged = result["raw_keywords"] + extra_tokens
             result["raw_keywords"] = _dedup([tok for tok in merged if tok])
+
+        result["raw_keywords"] = _remove_bank_tokens(
+            result["raw_keywords"], result.get("bank_name")
+        )
 
         # 임계값 미만이면 폴백
         if not result["intent"] or confidence < confidence_threshold:
