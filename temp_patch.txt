@@ -1,0 +1,23 @@
+*** Begin Patch
+*** Update File: rag/graph/multiAgent/sql_agent.py
+@@
+-        if loan_target:
+-            optional_clauses.append("loan_target ILIKE %s")
+-            optional_params.append(f"%{loan_target}%")
+-
+-        if product_filter_clauses and not skip_product_filter:
++        if product_filter_clauses and not skip_product_filter:
+             optional_clauses.append("(" + " OR ".join(product_filter_clauses) + ")")
+             optional_params.extend(product_filter_params)
+         else:
+             product_like = None
+             product_like_compact = None
++
++        if loan_target:
++            optional_clauses.append("loan_target ILIKE %s")
++            optional_params.append(f"%{loan_target}%")
++
++        if not optional_clauses and type_like:
++            optional_clauses.append("(product_category ILIKE %s OR product_detail_category ILIKE %s)")
++            optional_params.extend([type_like, type_like])
+*** End Patch

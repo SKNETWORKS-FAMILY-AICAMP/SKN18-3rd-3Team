@@ -23,5 +23,22 @@ def sql_retrieval_node(state: Dict[str, Any], deps: Any = None) -> Dict[str, Any
     """
     agent = _get_agent()
     state.setdefault("question", state.get("question", "") or "")
+    intent = (state.get("intent") or "other").lower()
+    confidence = float(state.get("confidence") or 0.0)
+    allowed_intents = {"rate_fee_lookup", "clause_lookup", "compare", "definition"}
+    if intent not in allowed_intents or confidence < 0.5:
+        message = "질문이 금융 상품과 관련 없어 SQL 검색을 생략했습니다."
+        state["sql_results"] = []
+        state["sql_contents"] = [message]
+        debug = state.get("debug") or {}
+        sql_debug = debug.get("sql") or {}
+        sql_debug.update({
+            "skipped": True,
+            "reason": f"intent={intent}, confidence={confidence:.2f}",
+        })
+        debug["sql"] = sql_debug
+        state["debug"] = debug
+        return state
+
     result_state = agent.run(state)
     return result_state
