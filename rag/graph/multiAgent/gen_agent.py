@@ -230,54 +230,10 @@ class GenerationAgent:
         # 질문에 실제 존재하는 상품명이 포함되어 있는지 확인
         has_specific_product = any(product in question for product in available_products)
         
-        # 특정 상품명이 포함된 질문이면 바로 해당 상품 정보 제공
-        if has_specific_product and sql_results:
-            product_info = sql_results[0]  # 첫 번째 상품 정보 사용
-            bank_name = product_info.get('bank_name', '')
-            product_name = product_info.get('product_name', '')
-            loan_period = product_info.get('loan_period', 'N/A')
-            loan_limit = product_info.get('loan_limit', 'N/A')
-            loan_target = product_info.get('loan_target', 'N/A')
-            loan_conditions = product_info.get('loan_conditions', 'N/A')
-            
-            # 약관 관련 키워드가 있는지 확인
-            clause_keywords = ["약관", "조항", "상품약관", "주의사항", "조건", "내용", "자세히", "알려줘"]
-            has_clause_request = any(keyword in question for keyword in clause_keywords)
-            
-            if has_clause_request and relevant_chunks:
-                # 약관 정보가 요청된 경우 상품 정보 + 약관 정보 제공
-                clause_info = ""
-                for chunk in relevant_chunks[:3]:  # 상위 3개 약관 정보
-                    clause_name = chunk.get('clause_name', '')
-                    clause_content = chunk.get('content_preview', chunk.get('content', ''))
-                    if clause_name and clause_content:
-                        clause_info += f"\n**{clause_name}:**\n{clause_content[:300]}...\n"
-                
-                return f"""**{bank_name} {product_name}** 상품 정보 및 약관입니다:
-
-🏦 **은행**: {bank_name}
-📋 **상품명**: {product_name}
-👥 **대상**: {loan_target}
-⏰ **기간**: {loan_period}
-💰 **한도**: {loan_limit}
-📝 **조건**: {loan_conditions}
-
-**📚 주요 약관 내용:**
-{clause_info}
-
-더 자세한 약관 정보가 필요하시면 구체적인 조항명을 말씀해 주세요."""
-            else:
-                # 일반적인 상품 정보만 제공
-                return f"""**{bank_name} {product_name}** 상품 정보입니다:
-
-🏦 **은행**: {bank_name}
-📋 **상품명**: {product_name}
-👥 **대상**: {loan_target}
-⏰ **기간**: {loan_period}
-💰 **한도**: {loan_limit}
-📝 **조건**: {loan_conditions}
-
-이 상품의 약관에 대해 더 자세히 알고 싶으시면 "약관 알려줘" 또는 "주의사항 알려줘"라고 말씀해 주세요."""
+        # 특정 상품명이 포함된 질문이면 바로 해당 상품 정보 제공 (비활성화)
+        # if has_specific_product and sql_results:
+        #     # 이 로직을 비활성화하여 app.py의 토글 로직이 실행되도록 함
+        #     pass
         
         # 단순한 후속 질문이면 무조건 후속 질문 제기 (sql_results나 relevant_chunks가 있어도 무시)
         if is_simple_followup:

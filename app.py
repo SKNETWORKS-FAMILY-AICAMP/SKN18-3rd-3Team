@@ -359,29 +359,38 @@ def main():
                     if sources:
                         print(f"[DEBUG] Source types: {[s.get('source_type') for s in sources[:5]]}")
                     
-                    # Display answer
-                    st.markdown(answer)
-                    
                     # Update context based on intent
                     debug_info = result.get("debug", {})
                     intent = debug_info.get("intent", "")
                     
                     # Determine if this is a product recommendation or clause question
-                    # 상품 추천: SQL 결과가 있고 상품 관련 질문인 경우
-                    is_product_recommendation = len(sql_sources) > 0 and any(keyword in processed_question.lower() for keyword in [
-                        "추천", "상품", "대출", "예금", "적금", "어떤", "무엇", "좋은", "추천해"
-                    ])
+                    # 상품 추천: SQL 결과가 있으면 무조건 상품 추천으로 간주
+                    is_product_recommendation = len(sql_sources) > 0
                     
                     # 조항 질문: Vector 결과가 있거나 조항 관련 질문인 경우
                     is_clause_question = len(vector_sources) > 0 or any(keyword in processed_question.lower() for keyword in [
                         "약관", "조항", "금리", "수수료", "조건", "주의", "제1조", "제2조", "제3조"
                     ])
                     
-                    if is_product_recommendation:
-                        # Product recommendation case - show products in expandable format
+                    # Debug output
+                    print(f"[DEBUG] sql_sources count: {len(sql_sources)}")
+                    print(f"[DEBUG] vector_sources count: {len(vector_sources)}")
+                    print(f"[DEBUG] is_product_recommendation: {is_product_recommendation}")
+                    print(f"[DEBUG] is_clause_question: {is_clause_question}")
+                    print(f"[DEBUG] processed_question: {processed_question}")
+                    
+                    # Check if this is a follow-up question about previously recommended products
+                    is_followup = st.session_state.current_context.get("waiting_for_product_selection", False)
+                    has_product_context = len(st.session_state.current_context.get("recommended_products", [])) > 0
+                    
+                    if is_product_recommendation and not (is_followup and has_product_context):
+                        # Initial product recommendation - show products in expandable format
                         st.session_state.current_context["recommended_products"] = sql_sources
                         st.session_state.current_context["last_intent"] = intent
                         st.session_state.current_context["waiting_for_product_selection"] = True
+                        
+                        # Display answer first
+                        st.markdown(answer)
                         
                         # Show products in a clean format
                         st.markdown("**🏦 추천 상품 정보:**")
@@ -423,14 +432,11 @@ def main():
                             "products": sql_sources
                         })
                     else:
-                        # General question or clause question case
+                        # General question or clause question case OR follow-up question
                         st.session_state.current_context["waiting_for_product_selection"] = False
                         
-                        # Add assistant message
-                        st.session_state.messages.append({
-                            "role": "assistant", 
-                            "content": answer
-                        })
+                        # Display answer first
+                        st.markdown(answer)
                         
                         # Show additional sources if available (only for clause questions)
                         if is_clause_question and vector_sources:
@@ -477,6 +483,33 @@ def main():
                                                 st.write(f"**📊 금리:** {interest_rate}% ({rate_type})")
                                         else:
                                             st.write(f"**📊 금리:** 정보 없음")
+                    
+                    # Display sources at the very end for all cases
+                    if sources:
+                        st.markdown("**출처:**")
+                        for i, source in enumerate(sources):
+                            if source.get("source_type") == "sql":
+                                bank_name = source.get('bank_name', 'N/A')
+                                product_name = source.get('product_name', 'N/A')
+                                st.markdown(f"{i+1}. {bank_name} - {product_name}")
+                            elif source.get("source_type") == "vector":
+                                clause = source.get('clause', '')
+                                clause_name = source.get('clause_name', '')
+                                if clause or clause_name:
+                                    st.markdown(f"{i+1}. {clause} - {clause_name}")
+                            elif source.get("source_type") == "web":
+                                title = source.get('title', '웹 검색 결과')
+                                st.markdown(f"{i+1}. {title}")
+                    
+                    # Add assistant message
+                    if is_product_recommendation and not (is_followup and has_product_context):
+                        # Already added above
+                        pass
+                    else:
+                        st.session_state.messages.append({
+                            "role": "assistant", 
+                            "content": answer
+                        })
                 
                 except Exception as e:
                     error_msg = f"❌ 오류가 발생했습니다: {str(e)}"

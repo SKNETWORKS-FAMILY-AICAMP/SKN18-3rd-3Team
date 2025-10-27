@@ -158,6 +158,7 @@ def build_rag_graph(
         try:
             # query 확보 (우선순위: rewritten_query > question)
             query = state.get("rewritten_query") or state.get("question") or ""
+            top_k = 8  # 관련성 높은 상위 8개만 가져오기
             
             if not query:
                 logger.error(f"No query found in state! Keys: {list(state.keys())}")
@@ -282,6 +283,12 @@ def build_rag_graph(
             logger.info(f"Exit eval_node: should_retry={state['should_retry']}")
             return state
         
+        # 청크 수 제한 (상위 8개만 사용)
+        top_k = 8
+        if len(vector_chunks) > top_k:
+            logger.info(f"Limiting chunks from {len(vector_chunks)} to {top_k}")
+            vector_chunks = vector_chunks[:top_k]
+        
         try:
             # LLM 평가 수행
             relevant_chunks = eval_agent.evaluate_chunks(question, vector_chunks)
@@ -335,8 +342,8 @@ def build_rag_graph(
         # 출처 포맷팅
         state = format_nodes.format_response(state)
         
-        # 답변에 출처 첨부
-        state = format_nodes.append_sources_to_answer(state)
+        # 답변에 출처 첨부하지 않음 (app.py에서 처리)
+        # state = format_nodes.append_sources_to_answer(state)
         
         logger.info("Response formatted with sources")
         return state

@@ -41,15 +41,52 @@ class GraphNodes:
         """
         응답 포맷팅 노드
         - 문서 메타에서 출처 정보 추출/정리
+        - SQL 결과를 sources에 추가
         - 미리보기는 개행/다중 공백 정리 후 200자 제한
         """
         documents = state.get("documents", []) or []
+        sql_results = state.get("sql_results", []) or []
+        
+        # Debug logging
+        logger.info(f"format_response: sql_results count = {len(sql_results)}")
+        logger.info(f"format_response: documents count = {len(documents)}")
+        
         sources: List[Dict[str, Any]] = []
+        source_index = 0
+
+        # Add SQL results to sources
+        for sql_result in sql_results[:10]:  # Limit to top 10
+            source_index += 1
+            bank_name = sql_result.get("bank_name", "")
+            product_name = sql_result.get("product_name", "")
+            product_category = sql_result.get("product_category", "")
+            
+            source_parts = []
+            if bank_name:
+                source_parts.append(bank_name)
+            if product_name:
+                source_parts.append(product_name)
+            if product_category:
+                source_parts.append(product_category)
+            
+            simple_preview = " - ".join(source_parts) if source_parts else "상품 정보"
+            
+            sources.append({
+                "index": source_index,
+                "source_type": "sql",
+                "bank_name": bank_name,
+                "product_name": product_name,
+                "product_category": product_category,
+                "content_preview": simple_preview,
+                # Store full product data for app.py
+                **sql_result
+            })
 
         # Limit to top 10 sources to avoid overwhelming output
         limited_documents = documents[:10]
 
         for i, doc in enumerate(limited_documents):
+            source_index += 1
             meta = getattr(doc, "metadata", {}) or {}
             
             # 간단한 출처 정보만 생성 (내용 제외)
@@ -75,7 +112,8 @@ class GraphNodes:
             simple_preview = " - ".join(source_parts) if source_parts else "문서"
 
             sources.append({
-                "index": i + 1,
+                "index": source_index,
+                "source_type": "vector",
                 "bank_name": bank_name,
                 "document_name": document_name,
                 "product_name": product_name,
