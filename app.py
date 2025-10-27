@@ -35,14 +35,9 @@ def process_query_with_context(current_question: str, chat_history: list) -> str
     Returns:
         컨텍스트가 포함된 처리된 질문
     """
-    # 후속 질문 패턴들
-    followup_patterns = [
-        "응", "응해줘", "응알려줘", "더 알려줘", "더 자세히", "자세히 알려줘",
-        "그거", "그것", "그 상품", "그 조항", "그것에 대해", "그거에 대해",
-        "어떻게", "뭐야", "뭔가", "뭐지", "뭐하는", "뭐하는거야",
-        "알려줘", "말해줘", "설명해줘", "상세히", "자세히", "더",
-        "약관", "조항", "상품약관", "주의사항", "조건"
-    ]
+    # 첫 질문이거나 단순한 후속 질문이 아닌 경우 원본 질문 반환
+    if len(chat_history) <= 1:
+        return current_question
     
     # 단순한 후속 질문인지 확인 (예: "응", "알려줘" 등)
     simple_followup_patterns = ["응", "응해줘", "응알려줘", "더 알려줘", "더 자세히", "자세히 알려줘", "그거", "그것", "그 상품", "그 조항", "그것에 대해", "그거에 대해", "어떻게", "뭐야", "뭔가", "뭐지", "뭐하는", "뭐하는거야", "알려줘", "말해줘", "설명해줘", "상세히", "자세히", "더"]
@@ -54,19 +49,15 @@ def process_query_with_context(current_question: str, chat_history: list) -> str
     if is_simple_followup:
         return current_question
     
-    # 현재 질문이 후속 질문인지 확인 (공백 제거 후 확인)
-    is_followup = any(pattern.replace(" ", "") in cleaned_question for pattern in followup_patterns)
-    
-    if not is_followup or len(chat_history) == 0:
-        return current_question
-    
     # 이전 대화에서 마지막 어시스턴트 답변 찾기
     last_assistant_message = None
     for msg in reversed(chat_history):
         if msg["role"] == "assistant":
-            last_assistant_message = msg["content"]
-            break
+            last_assistant_message = msg.get("content", "")
+            if last_assistant_message:
+                break
     
+    # 이전 답변이 없으면 원본 질문 반환
     if not last_assistant_message:
         return current_question
     
@@ -79,7 +70,7 @@ def process_query_with_context(current_question: str, chat_history: list) -> str
 
 위 이전 대화 내용을 참고하여 현재 질문에 답변해주세요.
 특히 이전에 여러 상품이 추천되었고 현재 질문에서 특정 상품을 지정하지 않은 경우, 
-"다섯 상품의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요?"라고 답변하고 상품 목록을 제시하세요.
+"추천된 상품들의 약관 내용을 자세히 안내해 드릴 수 있습니다. 어떤 상품의 약관을 자세히 알고 싶으신가요?"라고 답변하고 상품 목록을 제시하세요.
 """
     
     return context_question.strip()
@@ -179,7 +170,7 @@ def initialize_system():
             vectorstore=vectorstore,
             top_k=8,
             relevance_threshold=0.0,  # 평가 비활성화 (모든 청크 사용)
-            enable_langsmith=False
+            enable_langsmith=True  # LangSmith 추적 활성화
         )
         
         status_text.text("✅ 초기화 완료! (100%)")
@@ -279,9 +270,9 @@ def main():
         - 우리은행 대출 상품 추천해줘
         
         **조항 질문:**
-        - 중도상환수수료는 얼마인가요?
-        - 대출 금리는 어떻게 되나요?
-        - 우대 조건은 무엇인가요?
+        - 상품의 약관을 알려줘
+        - 상품가입 시 필요한 서류는 뭐야?
+        - 상품가입 시 주의해야 하는 약관은? 
         """)
     
     # 채팅 기록 표시
@@ -364,13 +355,16 @@ def main():
                     intent = debug_info.get("intent", "")
                     
                     # Determine if this is a product recommendation or clause question
-                    # 상품 추천: SQL 결과가 있으면 무조건 상품 추천으로 간주
-                    is_product_recommendation = len(sql_sources) > 0
-                    
-                    # 조항 질문: Vector 결과가 있거나 조항 관련 질문인 경우
-                    is_clause_question = len(vector_sources) > 0 or any(keyword in processed_question.lower() for keyword in [
-                        "약관", "조항", "금리", "수수료", "조건", "주의", "제1조", "제2조", "제3조"
+                    # 실제 질문 내용으로 판단
+                    is_clause_keyword = any(keyword in processed_question.lower() for keyword in [
+                        "약관", "조항", "금리", "수수료", "조건", "주의", "제1조", "제2조", "제3조", "금리는", "수수료는", "신청", "가입", "서류"
                     ])
+                    
+                    # 조항 질문: Vector 결과가 있거나 조항 관련 키워드가 있는 경우
+                    is_clause_question = len(vector_sources) > 0 or is_clause_keyword
+                    
+                    # 상품 추천: SQL 결과가 있고, 조항 질문이 아닌 경우
+                    is_product_recommendation = len(sql_sources) > 0 and not is_clause_question
                     
                     # Debug output
                     print(f"[DEBUG] sql_sources count: {len(sql_sources)}")
@@ -389,8 +383,17 @@ def main():
                         st.session_state.current_context["last_intent"] = intent
                         st.session_state.current_context["waiting_for_product_selection"] = True
                         
-                        # Display answer first
-                        st.markdown(answer)
+                        # Display answer first (remove sources if embedded)
+                        lines = answer.split('\n')
+                        clean_lines = []
+                        skip_remaining = False
+                        for line in lines:
+                            if '출처:' in line or skip_remaining:
+                                skip_remaining = True
+                                continue
+                            clean_lines.append(line)
+                        clean_answer = '\n'.join(clean_lines).strip()
+                        st.markdown(clean_answer)
                         
                         # Show products in a clean format
                         st.markdown("**🏦 추천 상품 정보:**")
@@ -435,77 +438,139 @@ def main():
                         # General question or clause question case OR follow-up question
                         st.session_state.current_context["waiting_for_product_selection"] = False
                         
-                        # Display answer first
-                        st.markdown(answer)
-                        
-                        # Show additional sources if available (only for clause questions)
-                        if is_clause_question and vector_sources:
-                            st.markdown("**📚 관련 약관 정보 (상위 10개):**")
-                            for i, source in enumerate(vector_sources[:10]):  # Show first 10 only
-                                with st.expander(f"📄 {i+1}. {source.get('clause', '')} - {source.get('clause_name', '')}"):
-                                    st.markdown(source["content_preview"])
+                        # Display answer first (remove sources if embedded)
+                        # Remove any source list that was appended to the answer
+                        lines = answer.split('\n')
+                        clean_lines = []
+                        skip_remaining = False
+                        for line in lines:
+                            if '출처:' in line or skip_remaining:
+                                skip_remaining = True
+                                continue
+                            clean_lines.append(line)
+                        clean_answer = '\n'.join(clean_lines).strip()
+                        st.markdown(clean_answer)
                         
                         # Show web search sources if available (limited to top 10)
                         if web_sources:
                             st.markdown("**🌐 웹 검색 결과 (상위 10개):**")
-                            for i, source in enumerate(web_sources[:10]):  # Show first 10 only
+                            for i, source in enumerate(web_sources[:8]):  # Show first 10 only
                                 with st.expander(f"🌐 {i+1}. {source.get('title', '웹 검색 결과')}"):
                                     st.markdown(f"**URL:** {source.get('url', 'N/A')}")
                                     st.markdown(f"**내용:** {source.get('content_preview', source.get('content', 'N/A'))}")
                         
-                        # 특정 상품을 지정한 조항 질문인 경우 상품 정보도 표시
-                        if is_clause_question and sql_sources:
-                            st.markdown("**🏦 상품 정보:**")
-                            for product in sql_sources:
-                                with st.expander(f"📄 {product.get('bank_name', 'N/A')} - {product.get('product_name', 'N/A')}", expanded=False):
-                                    # 6개 항목으로 통일된 형식
-                                    col1, col2 = st.columns(2)
-                                    with col1:
-                                        st.write(f"**🏦 은행:** {product.get('bank_name', 'N/A')}")
-                                        st.write(f"**📋 분류:** {product.get('product_category', 'N/A')}")
-                                        st.write(f"**👥 대상:** {product.get('loan_target', 'N/A')}")
-                                    with col2:
-                                        st.write(f"**⏰ 기간:** {product.get('loan_period', 'N/A')}")
-                                        st.write(f"**💰 한도:** {product.get('loan_limit', 'N/A')}")
-                                        
-                                        # 금리 정보 표시 (6번째 항목)
-                                        interest_rates = product.get('interest_rates', [])
-                                        if interest_rates:
-                                            # 첫 번째 금리 정보 표시
-                                            first_rate = interest_rates[0]
-                                            rate_type = first_rate.get('rate_type', '기본')
-                                            rate_condition = first_rate.get('rate_condition', '')
-                                            interest_rate = first_rate.get('interest_rate', 'N/A')
-                                            
-                                            if rate_condition:
-                                                st.write(f"**📊 금리:** {interest_rate}% ({rate_type}, {rate_condition})")
-                                            else:
-                                                st.write(f"**📊 금리:** {interest_rate}% ({rate_type})")
-                                        else:
-                                            st.write(f"**📊 금리:** 정보 없음")
-                    
-                    # Display sources at the very end for all cases
+                    # Display sources in one toggle format (for ALL cases - moved outside if/else blocks)
                     if sources:
-                        st.markdown("**출처:**")
-                        for i, source in enumerate(sources):
-                            if source.get("source_type") == "sql":
-                                bank_name = source.get('bank_name', 'N/A')
-                                product_name = source.get('product_name', 'N/A')
-                                st.markdown(f"{i+1}. {bank_name} - {product_name}")
-                            elif source.get("source_type") == "vector":
-                                clause = source.get('clause', '')
-                                clause_name = source.get('clause_name', '')
-                                if clause or clause_name:
-                                    st.markdown(f"{i+1}. {clause} - {clause_name}")
-                            elif source.get("source_type") == "web":
-                                title = source.get('title', '웹 검색 결과')
-                                st.markdown(f"{i+1}. {title}")
+                            with st.expander(f"**📌 출처** (총 {len(sources)}개)", expanded=False):
+                                for i, source in enumerate(sources):
+                                    if source.get("source_type") == "sql":
+                                        bank_name = source.get('bank_name', 'N/A')
+                                        product_name = source.get('product_name', 'N/A')
+                                        product_category = source.get('product_category', '')
+                                        st.write(f"**{i+1}. 📄 {bank_name} - {product_name}**")
+                                        details = f"- 은행: {bank_name}\n- 상품명: {product_name}"
+                                        if product_category:
+                                            details += f"\n- 분류: {product_category}"
+                                        if 'loan_target' in source and source.get('loan_target'):
+                                            details += f"\n- 대상: {source.get('loan_target')}"
+                                        if 'loan_period' in source and source.get('loan_period'):
+                                            details += f"\n- 기간: {source.get('loan_period')}"
+                                        if 'loan_limit' in source and source.get('loan_limit'):
+                                            details += f"\n- 한도: {source.get('loan_limit')}"
+                                        st.markdown(details)
+                                        if i < len(sources) - 1:
+                                            st.markdown("---")
+                                    elif source.get("source_type") == "vector":
+                                        clause = source.get('clause', '')
+                                        clause_name = source.get('clause_name', '')
+                                        bank_name = source.get('bank_name', '')
+                                        product_name = source.get('product_name', '')
+                                        title_parts = []
+                                        if bank_name:
+                                            title_parts.append(bank_name)
+                                        if product_name:
+                                            title_parts.append(product_name)
+                                        if clause:
+                                            title_parts.append(clause)
+                                        if clause_name:
+                                            title_parts.append(clause_name)
+                                        title = " - ".join([p for p in title_parts if p]) or "문서"
+                                        st.write(f"**{i+1}. 📄 {title}**")
+                                        details = f"- 은행: {bank_name or 'N/A'}"
+                                        if product_name:
+                                            details += f"\n- 상품명: {product_name}"
+                                        if clause:
+                                            details += f"\n- 조항: {clause}"
+                                        if clause_name:
+                                            details += f"\n- 조항명: {clause_name}"
+                                        st.markdown(details)
+                                        if i < len(sources) - 1:
+                                            st.markdown("---")
+                                    elif source.get("source_type") == "web":
+                                        title = source.get('title', '웹 검색 결과')
+                                        st.write(f"**{i+1}. 🌐 {title}**")
+                                        details = f"- URL: {source.get('url', 'N/A')}\n- 내용: {source.get('content_preview', 'N/A')}"
+                                        st.markdown(details)
+                                        if i < len(sources) - 1:
+                                            st.markdown("---")
                     
-                    # Add assistant message
-                    if is_product_recommendation and not (is_followup and has_product_context):
-                        # Already added above
-                        pass
-                    else:
+                    # Display sources in one toggle format at the end for all cases
+                    if sources:
+                        with st.expander(f"**📌 출처** (총 {len(sources)}개)", expanded=False):
+                            for i, source in enumerate(sources):
+                                if source.get("source_type") == "sql":
+                                    bank_name = source.get('bank_name', 'N/A')
+                                    product_name = source.get('product_name', 'N/A')
+                                    product_category = source.get('product_category', '')
+                                    st.write(f"**{i+1}. 📄 {bank_name} - {product_name}**")
+                                    details = f"- 은행: {bank_name}\n- 상품명: {product_name}"
+                                    if product_category:
+                                        details += f"\n- 분류: {product_category}"
+                                    if 'loan_target' in source and source.get('loan_target'):
+                                        details += f"\n- 대상: {source.get('loan_target')}"
+                                    if 'loan_period' in source and source.get('loan_period'):
+                                        details += f"\n- 기간: {source.get('loan_period')}"
+                                    if 'loan_limit' in source and source.get('loan_limit'):
+                                        details += f"\n- 한도: {source.get('loan_limit')}"
+                                    st.markdown(details)
+                                    if i < len(sources) - 1:
+                                        st.markdown("---")
+                                elif source.get("source_type") == "vector":
+                                    clause = source.get('clause', '')
+                                    clause_name = source.get('clause_name', '')
+                                    bank_name = source.get('bank_name', '')
+                                    product_name = source.get('product_name', '')
+                                    title_parts = []
+                                    if bank_name:
+                                        title_parts.append(bank_name)
+                                    if product_name:
+                                        title_parts.append(product_name)
+                                    if clause:
+                                        title_parts.append(clause)
+                                    if clause_name:
+                                        title_parts.append(clause_name)
+                                    title = " - ".join([p for p in title_parts if p]) or "문서"
+                                    st.write(f"**{i+1}. 📄 {title}**")
+                                    details = f"- 은행: {bank_name or 'N/A'}"
+                                    if product_name:
+                                        details += f"\n- 상품명: {product_name}"
+                                    if clause:
+                                        details += f"\n- 조항: {clause}"
+                                    if clause_name:
+                                        details += f"\n- 조항명: {clause_name}"
+                                    st.markdown(details)
+                                    if i < len(sources) - 1:
+                                        st.markdown("---")
+                                elif source.get("source_type") == "web":
+                                    title = source.get('title', '웹 검색 결과')
+                                    st.write(f"**{i+1}. 🌐 {title}**")
+                                    details = f"- URL: {source.get('url', 'N/A')}\n- 내용: {source.get('content_preview', 'N/A')}"
+                                    st.markdown(details)
+                                    if i < len(sources) - 1:
+                                        st.markdown("---")
+                    
+                    # Add assistant message (for ALL cases)
+                    if not (is_product_recommendation and not (is_followup and has_product_context)):
                         st.session_state.messages.append({
                             "role": "assistant", 
                             "content": answer
