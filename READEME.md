@@ -55,7 +55,7 @@
 
 ---
 
-# <표 1> 2024년 국내 은행 AI 활용 현황
+## <표 1> 2024년 국내 은행 AI 활용 현황
 
 > 출처: [삼성SDS – 2025년 은행 산업의 AI 활용 전망](https://www.samsungsds.com/kr/insights/ai-in-banking-in-2025.html)
 
@@ -72,24 +72,49 @@
 
 ---
 
-# ⚙️ 필요한 기술 스택
+## 🛠️ 개발 환경 및 사용 라이브러리
 
-본 시스템은 총 **6개 아키텍처 레이어(Architecture Layers)** 로 구성되며,  
-각 레이어는 **LLM 질의응답**, **검색·추천**, **규칙 검증**, **데이터 관리** 등의 역할을 수행합니다.
+### Environment
+![Windows](https://img.shields.io/badge/Windows-0078D6?style=for-the-badge&logo=windows&logoColor=white)
+![Visual Studio Code](https://img.shields.io/badge/Visual%20Studio%20Code-007ACC?style=for-the-badge&logo=Visual%20Studio%20Code&logoColor=white)
+![Git](https://img.shields.io/badge/Git-F05032?style=for-the-badge&logo=Git&logoColor=white)
+![Docker](https://img.shields.io/badge/Docker-2496ED?style=for-the-badge&logo=docker&logoColor=white)
 
-| 계층 | 주요 구성요소 | 핵심 기능 |
-|------|----------------|------------|
-| 💬 **LLM Layer** | GPT / Claude / Llama3 | 사용자 질의 이해 및 자연어 응답 생성 |
-| 🔎 **RAG Layer** | LangChain / LlamaIndex + Qdrant·Elastic | 상품설명서·약관 PDF에서 근거 문장 검색 |
-| 🧮 **Rule & ML Layer** | Python Rule Engine + LightGBM Ranker | 연령·소득·신용 기준 기반 자격 필터 및 상품 추천 |
-| 🧠 **Recommendation Engine (보류)** | Two-Tower Embedding + Ranking Model | 사용자–상품 매칭 및 선호도 예측 |
-| ⚙️ **MCP Integration Layer** | OpenAI MCP Server | LLM이 외부 API·DB를 안전하게 호출 |
-| 🗂️ **Data Infrastructure Layer** | Feast, Redis Cache | 사용자 특성 저장, 실시간 피처 로딩, 응답 속도 향상 |
+### Language
+![Python](https://img.shields.io/badge/python-3776AB?style=for-the-badge&logo=python&logoColor=white)
+
+### Frontend
+![Streamlit](https://img.shields.io/badge/streamlit-FF4B4B?style=for-the-badge&logo=streamlit&logoColor=white)
+
+### Backend · AI
+![LangChain](https://img.shields.io/badge/LangChain-1C3C3F?style=for-the-badge&logo=langchain&logoColor=white)
+![LangGraph](https://img.shields.io/badge/LangGraph-0A0A32?style=for-the-badge&logoColor=white)
+![OpenAI](https://img.shields.io/badge/OpenAI-412991?style=for-the-badge&logo=openai&logoColor=white)
+![LangSmith](https://img.shields.io/badge/LangSmith-0F172A?style=for-the-badge&logo=langchain&logoColor=white)
+
+### Data
+![Pandas](https://img.shields.io/badge/pandas-150458?style=for-the-badge&logo=pandas&logoColor=white)
+![Playwright](https://img.shields.io/badge/Playwright-2EAD33?style=for-the-badge&logo=playwright&logoColor=white)
+![BeautifulSoup](https://img.shields.io/badge/beautifulsoup-1A1A1A?style=for-the-badge&logo=python&logoColor=white)
+![PyMuPDF](https://img.shields.io/badge/PyMuPDF4LLM-0B1F3B?style=for-the-badge&logoColor=white)
+<img src="https://img.shields.io/badge/pdfplumber-555555?style=flat-square&logo=python&logoColor=white" alt="pdfplumber" height="25">
+
+### Storage
+![PostgreSQL](https://img.shields.io/badge/PostgreSQL-4169E1?style=for-the-badge&logo=postgresql&logoColor=white)
+![pgvector](https://img.shields.io/badge/pgvector-316192?style=for-the-badge&logo=postgresql&logoColor=white)
+
+### Communication
+![Discord](https://img.shields.io/badge/discord-5865F2?style=for-the-badge&logo=discord&logoColor=white)
+
+---
 
 ---
 
 ### 데이터 출처
-국민은행 / 우리은행 약관
+| 국민은행 | 우리은행 |
+|-----------|-----------|
+| <a href="https://obank.kbstar.com/quics?page=C016528" target="_blank"><img src="image/kb_logo.jpg" alt="국민은행" width="120"></a> | <a href="https://spot.wooribank.com/pot/Dream?withyou=PODEP0019" target="_blank"><img src="image/woori_logo.jpg" alt="우리은행" width="120"></a> |
+
 
 ## 주요 기능
 
@@ -217,7 +242,7 @@ SKN18-3rd-3Team/
                       ┗ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ┛
                                  🔽
                       ┏ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ┓
-                      ┃       질의정규화      ┃
+                      ┃       질의정규화       ┃
                       ┗ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ┛
                                  🔽
                       ┏ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ┓
@@ -232,12 +257,12 @@ SKN18-3rd-3Team/
             ┃         ┃     Vector DB 검색    ┃
             ┃         ┗ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ━ ┛
             ┃                     ┃                        
-                                  ┃ ◀━━━━━━━━━━━━━━━━━━┓
+                                  ┃ ◀━━━━━━━━━━━━━━━━━┓
             S                     ┃                    ┃
             Q                top_k = 8개        ┏ ━ ━ ━ ━ ━━ ┓  
             L           ┏━━━━━━━━━╋━━━━━━━━━┓   ┃ 질문재생성 ┣━━━┓
                         ┃         ┃         ┃   ┗ ━━ ━ ━ ━ ━ ┛   ┃  
-           검          충분      부족      0개         ┃         ┃
+           검          충분      부족      0개         ┃          ┃
            색           ┃         ┃         ┃          ┃         ┃
            결           ┃         ┗━━━━━━━━━┻━━━━━━━━━━┛         ┃
            과           ┃                                        ▼
@@ -358,7 +383,6 @@ SKN18-3rd-3Team/
    - SQL 요약과 청크를 사용해 최종 답변 텍스트를 생성하고, 출처(`sources`)를 함께 제공합니다.
 
 
-
 # 프로젝트 실행
 
 ## 사용 방법
@@ -384,7 +408,98 @@ SKN18-3rd-3Team/
 
 ## 실행 화면
 
+## 🏦 상담사와 대화하기 — 상품 추천 페이지
 
+![결과화면1](image/exec_page1.png)
+
+> 이 페이지는 사용자가 자연어로 질문을 입력하면,  
+LLM이 관련 은행 상품(예금, 적금, 대출 등)을 **자동 검색·요약·추천**해주는 메인 대화 화면입니다. 
+
+>예를 들어 “전문직 대상 대출 상품 추천해줘” 또는 “전세자금대출 상품 알려줘”와 같은 질의에 대해 해당 조건에 맞는 국민은행·우리은행 상품을 제시합니다.
+
+---
+
+### 🧩 주요 구성 요소
+
+#### 🟣 질문 예시 안내 박스
+- **상품 추천형 예시:**  
+  - “전문직 대상 대출 상품 추천해줘”  
+  - “전세자금대출 상품 알려줘”  
+- **조항 질의형 예시:**  
+  - “상품의 약관을 알려줘”  
+  - “상품가입 시 주의해야 하는 약관은?”
+
+#### 💬 사용자 입력창
+- 사용자가 직접 자연어로 질문을 입력할 수 있습니다.  
+- 예시: “KB닥터론 약관 알려줘”, “우리은행 대출 추천해줘”
+
+#### 🧠 LLM 응답 카드
+- **첫 번째 응답:** 추천된 상품의 핵심 요약  
+- **두 번째 응답:** 관련 상품 리스트 (은행별 접이식 아코디언 형태)
+
+#### 📑 결과 요약
+- 각 추천 상품을 클릭하면 세부 조건 및 약관 정보를 바로 확인할 수 있습니다.  
+- LLM이 상품 설명서와 약관 문서에서 **근거 문장**을 추출해 자연어로 요약합니다.
+
+#### 📚 출처 표시
+- RAG 검색을 통해 참조한 문서의 개수를 명시합니다.  
+  *(예: “출처 (총 15개)”)*
+  
+---
+
+### ✨ 특징
+
+- **통합 비교:** 여러 은행(국민은행, 우리은행 등)의 상품을 한 번에 비교 가능  
+- **정보 집약:** 상품명, 조건, 금리 정보를 한눈에 확인 가능  
+- **근거 기반 요약:** “상품명 + 약관 + 추천 근거”를 자연어로 정리해 제공  
+- **사용자 친화성:** 질문 한 번으로 복잡한 금융 정보를 직관적으로 이해 가능  
+
+---
+
+## 📜 상담사와 대화하기 — 약관 요약 페이지
+
+![결과화면2](image/exec_page2.png)
+![결과화면3](image/exec_page3.png)
+
+> 이 페이지는 사용자가 특정 상품의 약관을 요청했을 때,  
+LLM이 해당 상품의 약관 조항을 분석하여 **핵심 내용만 요약 정리**해 보여주는 화면입니다.  
+  
+>대출 기간·한도 등 기본 상품 정보와 함께 제13조(약관 변경), 제6조(금융서비스 이용 범위) 등의 핵심 조항 요약이 단계적으로 제공됩니다.
+
+---
+
+### 🧩 주요 구성 요소
+
+#### 📘 상품 요약
+- 해당 상품의 이름, 만기, 한도 등 기본 정보를 요약 표시  
+- 예시: KB버터론 (기간 10년, 한도 4억 원)
+
+#### 📜 약관 요약
+- **핵심 포인트(3~4개 조항)** 를 중심으로 간결하게 정리  
+- 각 조항에는 ‘요지’, ‘중요한 이유’, ‘적용 범위’가 포함됨  
+- 예시:  
+  - 제13조 약관의 변경  
+  - 제6조 금융서비스 이용범위  
+  - 제15조 신청내용의 변경 및 해지신고
+
+#### 💡 요약 설명
+- LLM이 약관 문서 내 중요 조항을 자동 추출하고  
+  그 의미를 **일반 사용자가 이해하기 쉬운 언어로 변환**하여 제공  
+- 공식 문서 기반의 요약임을 명시하여 **신뢰성 확보**
+
+#### 📚 관련 근거
+- RAG 기반으로 약관 PDF에서 추출된 실제 문장과 연결  
+- “관련 약관 정보 (총 n개)” 형태로 표시되어,  
+  사용자가 원문 문서로 바로 이동 가능  
+
+---
+
+### ✨ 특징
+
+- **약관 자동 요약:** LLM이 공식 문서의 주요 조항을 핵심만 발췌  
+- **법적 근거 기반:** 조항별 적용 사유 및 영향 명확히 제시  
+- **이해도 향상:** 복잡한 약관을 자연어 요약으로 간결히 설명  
+- **신뢰성 확보:** 원문 출처 명시로 정보의 투명성 강화  
 
 
 ## 개발
@@ -406,15 +521,6 @@ SKN18-3rd-3Team/
 - 검색 쿼리 및 결과
 - 에러 및 경고 메시지
 - 데이터베이스 연결 상태
-
-
-# 테스트 성능 및 평가
-
-
-# 실행 화면
-
-
-# 실행 확인
 
 
 # 후기

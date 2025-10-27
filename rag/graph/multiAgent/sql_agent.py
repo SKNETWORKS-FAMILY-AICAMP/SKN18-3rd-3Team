@@ -417,12 +417,20 @@ class SQLRetrievalAgent:
                 product_conditions.append("REPLACE(product_name, ' ', '') ILIKE %s")
                 product_filter_params.append(product_like_compact)
             product_filter_clauses.append("(" + " OR ".join(product_conditions) + ")")
-        if product_tokens:
+        if product_name is None and product_tokens:
             token_conditions: List[str] = []
             for token in product_tokens:
+                like_token = self._build_like_pattern(token)
+                if not like_token:
+                    continue
                 token_conditions.append("product_name ILIKE %s")
-                product_filter_params.append(f"%{token}%")
-            product_filter_clauses.append("(" + " OR ".join(token_conditions) + ")")
+                product_filter_params.append(like_token)
+                compact = token.replace(" ", "")
+                if compact and compact != token:
+                    token_conditions.append("REPLACE(product_name, ' ', '') ILIKE %s")
+                    product_filter_params.append(f"%{compact}%")
+            if token_conditions:
+                product_filter_clauses.append("(" + " OR ".join(token_conditions) + ")")
 
         type_like = self._build_like_pattern(product_type)
 
@@ -479,6 +487,13 @@ class SQLRetrievalAgent:
         if loan_target:
             optional_clauses.append("loan_target ILIKE %s")
             optional_params.append(f"%{loan_target}%")
+
+        if product_name and product_like:
+            optional_clauses = ["product_name ILIKE %s"]
+            optional_params = [product_like]
+            if product_like_compact and product_like_compact != product_like:
+                optional_clauses.append("REPLACE(product_name, ' ', '') ILIKE %s")
+                optional_params.append(product_like_compact)
 
         if not optional_clauses and type_like:
             optional_clauses.append("(product_category ILIKE %s OR product_detail_category ILIKE %s)")
@@ -758,7 +773,7 @@ if __name__ == "__main__":
 
     model = get_llm_model()
 
-    question = "국민은행 신혼부부 대출 금리 알려줘"
+    question = "kb 닥터론 가입 시 주의해야할 약관은?"
     intent_result = run_intent_agent(question, llm=model, debug=True)
     print("=== Intent Result ===")
     print(json.dumps(intent_result, ensure_ascii=False, indent=2))
