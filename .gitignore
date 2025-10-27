@@ -1,0 +1,29 @@
+# Environment variables
+.env
+
+#kiro
+.kiro/
+
+# Python
+__pycache__/
+docker/database
+
+# Virtual Environment
+venv/
+env/
+ENV/
+.venv
+
+# IDE
+.vscode/
+
+# Logs
+*.log
+logs/
+
+# Database
+*.db
+*.sqlite3
+
+# Docker volumes
+pgdata/
