@@ -278,57 +278,7 @@ SKN18-3rd-3Team/
 
 
 
-# 설치 및 실행
-## 1. 사전 요구사항
-- Docker 및 Docker Compose 설치
-- OpenAI API 키
-
-## 2. 환경 변수 설정
-`.env` 파일을 생성하고 다음 내용을 입력하세요:
-```bash
-# OpenAI
-OPENAI_API_KEY=your-api-key-here
-EMBED_MODEL=text-embedding-3-large     # 3세대 임베딩(3072차원)
-LLM_MODEL=gpt-5-nano                   # 응답 생성 모델
-OPENAI_TIMEOUT=30
-
-# DB
-DB_URL=postgresql://postgres:postgres@db:5432/rag
-PGVECTOR_INDEX=ivfflat                 # 또는 hnsw
-TOP_K=8
-```
-### 3. Docker로 실행
-
-```bash
-# 1. Docker Compose로 전체 시스템 시작
-docker-compose up -d
-
-# 2. 데이터 인덱싱 (최초 1회만 실행)
-docker-compose exec app python scripts/index_data.py
-
-docker-compose exec app python -c "from RAG.db.connection import DatabaseConnection; from RAG.db.repo import DocumentRepository; from RAG.core.config import get_config; config = get_config(); db = DatabaseConnection(config.DB_URL); repo = DocumentRepository(db); print(f'문서 수: {repo.get_document_count()}')"
-# 인덱싱되어있는지 확인
-
-# 3. 브라우저에서 접속
-# http://localhost:8501
-```
-
-**추가 명령어:**
-```bash
-# 로그 확인
-docker-compose logs -f app
-
-# 시스템 종료
-docker-compose down
-
-# 데이터베이스까지 완전 삭제 (재인덱싱 필요)
-docker-compose down -v
-```
-
-**참고:**
-- 인덱싱은 **최초 1회만** 실행하면 됩니다
-- 데이터는 Docker volume에 저장되어 재시작해도 유지됩니다
-- CSV 데이터 변경 시에만 재인덱싱이 필요합니다
+# 프로젝트 실행
 
 ## 사용 방법
 
@@ -351,31 +301,10 @@ docker-compose down -v
 - "대출 한도는 어떻게 결정되나요?"
 - "금리 우대 조건은 무엇인가요?"
 
-## 데이터 인덱싱
+## 실행 화면
 
-CSV 데이터를 벡터 데이터베이스에 인덱싱하려면:
 
-```bash
-# Docker 환경 (권장)
-docker-compose exec app python scripts/index_data.py
 
-# 가상환경
-python scripts/index_data.py
-```
-
-**인덱싱 관련 참고사항:**
-- 인덱싱은 **최초 1회만** 실행하면 됩니다
-- 데이터는 PostgreSQL volume에 영구 저장됩니다
-- Docker 재시작 후에도 데이터가 유지되므로 재인덱싱 불필요
-- 인덱싱 완료 여부 확인:
-```bash
-docker-compose exec app python -c "from RAG.db.connection import DatabaseConnection; from RAG.db.repo import DocumentRepository; from RAG.core.config import get_config; config = get_config(); db = DatabaseConnection(config.DB_URL); repo = DocumentRepository(db); print(f'인덱싱된 문서 수: {repo.get_document_count()}')"
-```
-
-**재인덱싱이 필요한 경우:**
-- CSV 데이터 파일이 변경되었을 때
-- `docker-compose down -v`로 volume을 삭제했을 때
-- 데이터베이스를 초기화했을 때
 
 ## 개발
 
@@ -396,29 +325,6 @@ docker-compose exec app python -c "from RAG.db.connection import DatabaseConnect
 - 검색 쿼리 및 결과
 - 에러 및 경고 메시지
 - 데이터베이스 연결 상태
-
-## 문제 해결
-
-### 데이터베이스 연결 실패
-
-```bash
-# PostgreSQL이 실행 중인지 확인
-docker-compose ps
-
-# 데이터베이스 로그 확인
-docker-compose logs db
-```
-
-### OpenAI API 에러
-
-- `.env` 파일의 `OPENAI_API_KEY`가 올바른지 확인
-- API 사용량 및 한도 확인
-
-### 인덱싱 실패
-
-- CSV 파일 경로 확인: `data/final_data.csv`
-- 데이터베이스 테이블이 생성되었는지 확인
-- 로그에서 상세한 에러 메시지 확인
 
 
 # 테스트 성능 및 평가

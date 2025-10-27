@@ -257,6 +257,17 @@ docker-compose exec app python -c "import os; print(os.getenv('OPENAI_API_KEY'))
 - Docker Desktop 설정에서 메모리 할당 증가 (최소 4GB 권장)
 - `scripts/index_data.py`의 `batch_size` 줄이기 (현재 20)
 
+### 5. OpenAI API 에러
+
+- `.env` 파일의 `OPENAI_API_KEY`가 올바른지 확인
+- API 사용량 및 한도 확인
+
+### 6. 인덱싱 실패
+
+- CSV 파일 경로 확인: `data/final_data.csv`
+- 데이터베이스 테이블이 생성되었는지 확인
+- 로그에서 상세한 에러 메시지 확인
+
 ---
 
 ## 📚 추가 정보
@@ -264,30 +275,88 @@ docker-compose exec app python -c "import os; print(os.getenv('OPENAI_API_KEY'))
 ### 프로젝트 구조
 
 ```
-.
-├── data/                           # 데이터 파일
-│   ├── final_embedding_data_v7.csv # 벡터 임베딩 데이터
-│   └── RDB/
-│       ├── loan_products_RDB.csv   # 대출 상품 정보
-│       └── bank_rate.csv           # 금리 정보
-├── docker/
-│   ├── initdb/
-│   │   └── 01_init.sql            # DB 초기화 스크립트
-│   ├── Dockerfile.app             # App 이미지
-│   └── requirements.txt           # Python 패키지
-├── rag/                           # RAG 시스템 코드
-│   ├── graph/                     # LangGraph 구성
-│   │   ├── multiAgent/           # Agent 구현
-│   │   └── nodes/                # Node 구현
-│   ├── vectorstore/              # Vector Store
-│   ├── db/                       # DB 연결
-│   ├── embeddings/               # 임베딩
-│   └── llm/                      # LLM 모델
-├── scripts/
-│   └── index_data.py             # 데이터 인덱싱 스크립트
-├── app.py                        # Streamlit 앱
-├── docker-compose.yml            # Docker 구성
-└── .env                          # 환경 변수
+SKN18-3rd-3Team/
+├── app.py                                  # 메인 애플리케이션
+├── docker-compose.yml                      # Docker Compose 설정
+├── README.md                               # 프로젝트 구조 및 설명
+├── Start.md                                # 프로젝트 실행 준비 및 과정
+├── .env                                    # 환경 변수 (LLM 설정 추가)
+│
+├── rag/                                    # RAG 시스템 핵심 모듈
+│   ├── core/                               # 핵심 설정
+│   │   ├── config.py                       # 환경 설정 (LLM 모델 분리)
+│   │   ├── logger.py                       # 프로젝트 로그 저장 및 출력
+│   │   └── singleton.py                    # 싱글톤 class 정의
+│   │
+│   ├── llm/                                # LLM 모듈
+│   │   └── get_llm.py                      # 생성용/평가용 LLM 호출
+│   │
+│   ├── embeddings/                         # 임베딩 모듈
+│   │   ├── openai_embed.py                 # OpenAI Embeddings (1536차원)
+│   │   └── provider.py                     # 임베딩 provider 인터페이스 정의
+│   │
+│   ├── vectorstore/                        # 벡터 저장소
+│   │   ├── pgvector_store.py               # PostgreSQL + pgvector
+│   │   └── sql.py                          # 3072차원
+│   │
+│   ├── db/                                 # 데이터베이스
+│   │   ├── connection.py                   # DB 연결 관리
+│   │   └── repo.py                         # DB 레포지토리
+│   │
+│   ├── ingestion/                          # 데이터 수집
+│   │   ├── load_csv.py                     # 은행 약관/대출정보/금리 문서 로드
+│   │   └── indexer.py                      # 문서 리스트를 받아 벡터스토어(DB)에 추가
+│   │
+│   ├── graph/                              # LangGraph 구조
+│   │   ├── build.py                        # LangGraph node-edge 연결 및 조건분기(구성)
+│   │   ├── State.py                        # 사용자 정의 State
+│   │   │
+│   │   ├── multiAgent/                       # Multi-Agent 시스템
+│   │   │   ├── classify_agent.py             # 분류 에이전트
+│   │   │   ├── sql_agent.py                  # SQL 검색 에이전트
+│   │   │   ├── eval_agent.py                 # 웹 검색/vectordb 검색 결과 평가 및 선택
+│   │   │   └── gen_agent.py                  # 답변 취합 및 생성
+│   │   │
+│   │   ├── nodes/                            # LangGraph 노드들
+│   │   │   ├── classify_node.py              # 분류 노드
+│   │   │   ├── search_sql_node.py            # SQL 검색 노드
+│   │   │   ├── search_vectordb_node.py       # 벡터 검색 노드
+│   │   │   ├── search_web_node.py            # 웹 검색 노드
+│   │   │   ├── eval_node.py                  # 웹 검색/vectordb 검색 결과 평가 및 선택 노드
+│   │   │   ├── generate_answer_node.py       # 답변 생성 노드
+│   │   │   ├── format_response_node.py       # 응답 포맷팅 노드
+│   │   │   ├── response_formatting_node.py   # 응답 포맷팅 노드
+│   │   │   └── rewrite_query_node.py         # 쿼리 재작성 노드
+│   │   │
+│   │   └── route/                            # 라우팅 로직
+│   │       ├── __init__.py
+│   │       ├── route_classify.py             # 분류 기반 라우팅
+│   │       └── route_eval.py                 # 평가 기반 라우팅
+│   │
+│   └── langsmith/                            # LangSmith 모니터링
+│       ├── tracer.py                         # 트레이싱 설정
+│       └── utils.py                          # 유틸리티 함수
+│  
+│  
+├── scripts/                          # 실행 스크립트
+│   ├── index_data.py                 # 은행 데이터를 벡터스토어에 적재
+│   ├── test.py                       # RAG 테스트, 임계값 35.0
+│   └── visualize_graph.py            # 그래프 시각화
+│
+├── data/                             # 데이터 파일
+│   ├── final_embedding_data_v7.csv   # Vector DB용 데이터 (8,097개 청크)
+│   └── RDB/                          # RDB용 데이터
+│       ├── bank_rate.csv             # 은행 금리 데이터
+│       └── loan_products_RDB.csv     # 대출 상품 데이터
+│
+└── docker/                           # Docker 설정
+    ├── Dockerfile.app                # 앱 Dockerfile
+    ├── requirements.txt                        # Python 패키지 의존성
+    └── initdb/                       # DB 초기화 스크립트
+        ├── 01_init.sql         # PostgreSQL 확장
+        ├── bank_rate.csv             # 금리 데이터
+        ├── final_embedding_data_v7.csv   # 임베딩 데이터
+        └── loan_products_RDB.csv     # 대출 상품 데이터
 ```
 
 ### 데이터베이스 스키마
