@@ -518,9 +518,6 @@ LLM이 해당 상품의 약관 조항을 분석하여 **핵심 내용만 요약 
 ![LangSmith](image/langsmith.png)
 > LangSmith로 작성된 프롬프트와 input 및 output을 모니터링
 
-## ⭐EVENT⭐
-
-![Event](image/event.png)
 
 # 소감
 🐸이태호(팀장) : \
